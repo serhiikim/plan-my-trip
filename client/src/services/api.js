@@ -1,4 +1,3 @@
-// src/services/api.js
 import axios from 'axios';
 import { auth } from './auth';
 
@@ -31,3 +30,62 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Plan and Itinerary endpoints
+export const planApi = {
+  // Generate itinerary for a plan
+  generateItinerary: async (planId) => {
+    try {
+      const { data } = await api.post(`/plans/${planId}/generate`);
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to generate itinerary');
+    }
+  },
+
+  // Get itinerary for a plan
+  getItinerary: async (planId) => {
+    try {
+      const { data } = await api.get(`/plans/${planId}/itinerary`);
+      return data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        throw new Error('not_found');
+      }
+      throw new Error(error.response?.data?.message || 'Failed to fetch itinerary');
+    }
+  },
+
+  // Export itinerary (new)
+  exportItinerary: async (planId, format = 'pdf') => {
+    try {
+      const response = await api.get(`/plans/${planId}/export`, {
+        params: { format },
+        responseType: 'blob' // Important for file downloads
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to export itinerary');
+    }
+  },
+
+  // Share itinerary (new)
+  shareItinerary: async (planId, shareData) => {
+    try {
+      const response = await api.post(`/plans/${planId}/share`, shareData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to share itinerary');
+    }
+  },
+
+  // Regenerate itinerary (new)
+  regenerateItinerary: async (planId) => {
+    try {
+      const { data } = await api.post(`/plans/${planId}/regenerate`);
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to regenerate itinerary');
+    }
+  }
+};

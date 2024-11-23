@@ -11,7 +11,7 @@ import { chatService } from '@/services/chat';
 import { chatbot, CHAT_STAGES, QUESTIONS } from '@/services/chatbot';
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import toast from 'react-hot-toast';
+import { useToast } from "@/hooks/use-toast";
 
 export function ChatInterface() {
   const [message, setMessage] = useState('');
@@ -23,6 +23,7 @@ export function ChatInterface() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Scrolls the chat to the latest message
   const scrollToBottom = () => {
@@ -77,7 +78,6 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      // Add user's message to the chat
       setMessages(prev => [...prev, {
         id: Date.now(),
         type: 'user',
@@ -85,21 +85,17 @@ export function ChatInterface() {
         timestamp: new Date()
       }]);
 
-      // Add assistant's typing indicator
       setMessages(prev => [...prev, {
         id: 'typing',
         type: 'assistant',
         isTyping: true
       }]);
 
-      // Get chatbot response
       const response = chatbot.processResponse(input);
 
-      // Remove typing indicator
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
 
       if (!response.isValid) {
-        // Display validation error from chatbot
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           type: 'assistant',
@@ -107,17 +103,14 @@ export function ChatInterface() {
           timestamp: new Date()
         }]);
 
-        // Show relevant picker
         if (response.stage === CHAT_STAGES.DATES) {
           setShowDatePicker(true);
         } else if (response.stage === CHAT_STAGES.FLIGHT_DETAILS) {
           setShowFlightPicker(true);
         }
       } else {
-        // Update progress bar
         setProgress(calculateProgress(response.stage));
 
-        // Display chatbot's next question
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           type: 'assistant',
@@ -125,28 +118,41 @@ export function ChatInterface() {
           timestamp: new Date()
         }]);
 
-        // Show relevant picker if needed
         if (response.stage === CHAT_STAGES.DATES) {
           setShowDatePicker(true);
         } else if (response.stage === CHAT_STAGES.FLIGHT_DETAILS) {
           setShowFlightPicker(true);
         }
 
-        // Submit travel plan if complete
         if (response.isComplete) {
           const travelData = chatbot.getTravelData();
-          await chatService.submitTravelPlan(travelData);
-          toast.success("Travel plan data collected! Generating your itinerary...");
-          setTimeout(() => {
-            navigate('/plan');
-          }, 2000);
+          try {
+            const response = await chatService.submitTravelPlan(travelData);
+            
+            toast({
+              title: "Success",
+              description: "Travel plan data collected! Redirecting to generation..."
+            });
+
+            navigate(`/plans/${response.planId}?new=true`);
+          } catch (error) {
+            console.error('Failed to submit travel plan:', error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: error.message || "Failed to submit travel plan. Please try again."
+            });
+          }
         }
       }
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Something went wrong. Please try again.');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong. Please try again."
+      });
 
-      // Remove typing indicator in case of error
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
     } finally {
       setIsLoading(false);
@@ -167,7 +173,7 @@ export function ChatInterface() {
       {/* Progress Bar */}
       <div className="mb-4 p-4 bg-background rounded-lg border shadow-sm">
         <h2 className="text-lg font-semibold mb-2">Travel Plan Setup</h2>
-        <Progress value={progress} className={`h-2 ${progress >= 90 ? 'bg-green-500' : progress >= 60 ? 'bg-blue-400' : progress >= 30 ? 'bg-yellow-400' : 'bg-orange-400'}`} /> 
+        <Progress value={progress} /> 
         <p className="text-sm text-muted-foreground mt-2">
           {progress === 100 ? 'All information collected!' : `${progress}% complete`}
         </p>

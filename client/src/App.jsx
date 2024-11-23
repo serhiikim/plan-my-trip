@@ -1,7 +1,7 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from '@/components/ui/toaster';
 import { StoreProvider } from './store/store';
 import { auth } from './services/auth';
 import LoginPage from './pages/LoginPage';
@@ -30,15 +30,20 @@ function App() {
               }
             />
             <Route
-              path="/plan"
+              path="/plans/:planId"
               element={
                 <ProtectedRoute>
                   <PlanPage />
                 </ProtectedRoute>
               }
             />
+            {/* Redirect /plan to chat page where user can start new plan */}
+            <Route 
+              path="/plan" 
+              element={<Navigate to="/" replace />} 
+            />
           </Routes>
-          <Toaster position="top-center" />
+          <Toaster />
         </Router>
       </GoogleOAuthProvider>
     </StoreProvider>

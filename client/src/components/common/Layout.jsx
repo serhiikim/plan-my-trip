@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { auth } from '@/services/auth';
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 import {
   MessageCircle,
   Map,
@@ -74,6 +75,7 @@ export function Layout({ children }) {
       <main className="flex-1 container max-w-6xl mx-auto px-4 py-6">
         {children}
       </main>
+      <Toaster />
     </div>
   );
 }

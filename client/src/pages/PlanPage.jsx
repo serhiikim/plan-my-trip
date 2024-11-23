@@ -1,13 +1,403 @@
-// src/pages/PlanPage.jsx
+// client/src/pages/PlanPage.jsx
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
+import { planApi } from '../services/api';
+import DayTimeline from '../components/plan/DayTimeline';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Loader2, 
+  MoreVertical, 
+  Share2, 
+  Printer, 
+  RefreshCw,
+  FileIcon,
+  FileText,
+} from 'lucide-react';
 
 export default function PlanPage() {
-  return (
-    <Layout>
-      <div className="container max-w-4xl">
-        <h1 className="text-2xl font-bold mb-4">Your Travel Plan</h1>
-        <p>Your travel plan will appear here once generated.</p>
-      </div>
-    </Layout>
-  );
-}
+  const { planId } = useParams();
+  const location = useLocation();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
+  const pollingRef = useRef(null);
+  const isNewPlan = location.search.includes('new=true');
+  const navigate = useNavigate();
+
+  const loadItinerary = async (showToast = false) => {
+    try {
+      // Don't try to load if we're already generating
+      if (isGenerating) {
+        return;
+      }
+  
+      const itineraryData = await planApi.getItinerary(planId);
+      
+      // Check if we have valid data
+      if (!itineraryData?.dailyPlans?.length) {
+        throw new Error('not_found');
+      }
+  
+      setData(itineraryData);
+      setIsGenerating(false);
+      
+      if (showToast) {
+        toast({
+          title: "Success",
+          description: "Your travel plan is ready to view"
+        });
+      }
+  
+      // Clear polling if it exists
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    } catch (error) {
+      if (error.message === 'not_found' && !isNewPlan && !isGenerating) {
+        setError("Itinerary not found");
+      } else if (!error.message.includes('not_found')) {
+        setError(error.message);
+        setIsGenerating(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startPolling = () => {
+    // Don't start a new polling interval if one exists
+    if (pollingRef.current) {
+      return;
+    }
+  
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes max (60 * 5 seconds)
+  
+    pollingRef.current = setInterval(async () => {
+      try {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setIsGenerating(false);
+          setError("Generation timeout. Please try regenerating.");
+          return;
+        }
+  
+        const itineraryData = await planApi.getItinerary(planId);
+        
+        // Only update and stop polling if we got valid data
+        if (itineraryData?.dailyPlans?.length > 0) {
+          setData(itineraryData);
+          setIsGenerating(false);
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          
+          toast({
+            title: "Success",
+            description: "Your travel plan is ready!"
+          });
+
+          if (isNewPlan) {
+            navigate(`/${planId}`);
+          }
+        }
+      } catch (error) {
+        // Only handle non-404 errors
+        if (!error.message.includes('not_found')) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setIsGenerating(false);
+          setError(error.message);
+        }
+        // Continue polling on 404s
+      }
+    }, 5000);
+  };
+  
+    const handleGenerate = async () => {
+      try {
+        setIsGenerating(true);
+        setError(null);
+        
+        toast({
+          title: "Generating plan",
+          description: "Please wait while we create your travel plan..."
+        });
+  
+        await planApi.generateItinerary(planId);
+        startPolling();
+      } catch (error) {
+        setError(error.message);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message
+        });
+        setIsGenerating(false);
+      }
+    };
+  
+    const handleRegenerate = async () => {
+      setIsRegenerateDialogOpen(false);
+      try {
+        setIsGenerating(true);
+        setError(null);
+        
+        toast({
+          title: "Regenerating plan",
+          description: "Please wait while we create your new travel plan..."
+        });
+  
+        await planApi.regenerateItinerary(planId);
+        startPolling();
+      } catch (error) {
+        setError(error.message);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message
+        });
+        setIsGenerating(false);
+      }
+    };
+  
+    const handleExport = async (format) => {
+      try {
+        toast({
+          title: "Exporting itinerary",
+          description: `Preparing your travel plan in ${format.toUpperCase()} format`
+        });
+        
+        const blob = await planApi.exportItinerary(planId, format);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `travel-plan-${planId}.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+  
+        toast({
+          title: "Export successful",
+          description: "Your itinerary has been downloaded"
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Export failed",
+          description: error.message
+        });
+      }
+    };
+  
+    const handleShare = async () => {
+      toast({
+        title: "Share feature",
+        description: "Coming soon!"
+      });
+    };
+  
+    const handlePrint = () => {
+      window.print();
+    };
+  
+    useEffect(() => {
+      const initializePage = async () => {
+        if (isNewPlan) {
+          // For new plans, immediately start generating without trying to load first
+          setIsGenerating(true);
+          handleGenerate();
+        } else {
+          // For existing plans, just try to load once
+          await loadItinerary();
+        }
+      };
+    
+      initializePage();
+    
+      // Cleanup
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      };
+    }, [planId, isNewPlan]);
+  
+    if (loading || isGenerating) {
+      return (
+        <Layout>
+          <div className="container max-w-4xl">
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">
+                {isGenerating 
+                  ? "AI is creating your perfect travel plan..."
+                  : "Loading your travel plan..."}
+              </p>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
+  
+    if (error) {
+      return (
+        <Layout>
+          <div className="container max-w-4xl">
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                {error}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => loadItinerary(true)}
+                  className="ml-2"
+                >
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </Layout>
+      );
+    }
+  
+    if (!data) {
+      return (
+        <Layout>
+          <div className="container max-w-4xl">
+            <Card className="mb-4">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold mb-2">Initializing Your Travel Plan</h2>
+                    <p className="text-muted-foreground">
+                      We're setting up your itinerary. This may take a few moments...
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </Layout>
+      );
+    }
+  
+    return (
+      <Layout>
+        <div className="container max-w-4xl space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Your Travel Itinerary</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {data.destination}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('json')}>
+                    <FileIcon className="mr-2 h-4 w-4" />
+                    Export as JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleShare}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => setIsRegenerateDialogOpen(true)}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Regenerate
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Total Budget: {data.totalCost}
+              </p>
+            </CardContent>
+          </Card>
+  
+          <div className="space-y-4">
+            {data.dailyPlans.map((day) => (
+              <DayTimeline key={day.date} day={day} />
+            ))}
+          </div>
+  
+          {data.generalNotes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">General Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{data.generalNotes}</p>
+              </CardContent>
+            </Card>
+          )}
+  
+          <AlertDialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Regenerate Itinerary</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will create a completely new travel plan. Your current itinerary will be replaced. Are you sure you want to continue?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRegenerate}>Continue</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </Layout>
+    );
+  }
