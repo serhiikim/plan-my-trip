@@ -1,0 +1,10 @@
+# Environment
+.env
+# Ignore node_modules
+node_modules/
+# Ignore built files
+build/
+dist/
+# End Generation Here
+client/build
+.DS_Store
