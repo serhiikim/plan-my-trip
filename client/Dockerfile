@@ -5,10 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy .env file specifically before other files
-COPY ./client/.env ./.env
-
-# Then copy everything else
+# Copy everything (including .env)
 COPY . .
 
 # Build the app (it will now have access to .env during build)
