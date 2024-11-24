@@ -6,16 +6,12 @@ services:
       context: ./server
       dockerfile: Dockerfile
     ports:
-      - "3003:3003"
+      - "3003:3003"  # This port matches your Nginx proxy_pass
     env_file:
       - ./server/.env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3003
-    volumes:
-      - ./server:/app
-      - /app/node_modules
-    command: npm run dev  # Using nodemon for development
     restart: unless-stopped
 
   client:
@@ -23,19 +19,11 @@ services:
       context: ./client
       dockerfile: Dockerfile
     ports:
-      - "3002:3002"  # Vite's default dev server port
+      - "3002:3002"  # This port matches your Nginx proxy_pass
     env_file:
       - ./client/.env
     environment:
-      - NODE_ENV=development
-    volumes:
-      - ./client:/app
-      - /app/node_modules
-    command: npm run dev -- --host  # Vite dev server with host flag
+      - NODE_ENV=production
     depends_on:
       - server
     restart: unless-stopped
-
-networks:
-  default:
-    name: travel-planner-network

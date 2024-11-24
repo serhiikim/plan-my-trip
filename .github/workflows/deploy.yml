@@ -1,0 +1,126 @@
+name: Deploy Travel Planner to Hetzner
+
+on:
+  push:
+    branches:
+      - main  # or main, depending on your default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram notification on start
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 Travel Planner Deployment started!
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+            
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build and save Docker images
+        run: |
+          # Add timestamp to force rebuild
+          echo "BUILD_TIME=$(date)" > ./client/build-time.txt
+          echo "COMMIT_SHA=${{ github.sha }}" >> ./client/build-time.txt
+          
+          # Build with no-cache option
+          docker build --no-cache -t travel-planner-client:latest ./client
+          docker build --no-cache -t travel-planner-server:latest ./server
+          
+          # Save images
+          docker save travel-planner-client:latest > client.tar
+          docker save travel-planner-server:latest > server.tar
+
+      - name: Copy files to Hetzner
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USERNAME }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: "client.tar,server.tar,docker-compose.yml"
+          target: "/home/deploy/travel-planner/"  # New directory
+          strip_components: 0
+
+      - name: Deploy to Hetzner
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USERNAME }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /home/deploy/travel-planner  # New directory
+            
+            # Load new images
+            docker load < client.tar
+            docker load < server.tar
+            
+            # Stop and remove old containers
+            docker compose down
+            
+            # Start new containers
+            docker compose up -d
+            
+            # Cleanup
+            rm client.tar server.tar
+            
+            # Optional: Remove unused images
+            docker image prune -f
+
+      - name: Clean up local files
+        if: always()
+        run: |
+          rm -f client.tar
+          rm -f server.tar
+
+      - name: Purge Cloudflare Cache
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'
+
+      - name: Send Telegram notification on success
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Travel Planner Deployment completed successfully!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            
+            Deployed by: ${{ github.actor }}
+
+      - name: Send Telegram notification on failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Travel Planner Deployment failed!
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            
+            Triggered by: ${{ github.actor }}
+            
+            Please check the GitHub Actions logs for more details.
