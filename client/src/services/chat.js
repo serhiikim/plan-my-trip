@@ -11,6 +11,11 @@ class ChatService {
     const response = await api.get('/chat/history');
     return response.data;
   }
+
+  async submitTravelPlan(travelData) {
+    const response = await api.post('/plans/create', travelData);
+    return response.data;
+  }
 }
 
 export const chatService = new ChatService();
