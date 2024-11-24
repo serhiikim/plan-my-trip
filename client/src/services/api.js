@@ -96,6 +96,17 @@ export const planApi = {
     }
   },
 
+  getItineraries: async (page = 1) => {
+    try {
+      const { data } = await api.get('/plans/itineraries', {
+        params: { page }
+      });
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch travel plans');
+    }
+  },
+
   // Regenerate itinerary (new)
   regenerateItinerary: async (planId) => {
     try {

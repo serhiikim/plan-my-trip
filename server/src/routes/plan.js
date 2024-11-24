@@ -18,7 +18,85 @@ const validateObjectId = (req, res, next) => {
   req.validatedPlanId = new ObjectId(planId);
   next();
 };
+// plan.js
+// plan.js
+router.get('/itineraries', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const skip = (page - 1) * limit;
 
+    const total = await db.collection('itineraries').countDocuments({
+      'planId': { $exists: true }
+    });
+
+    const itineraries = await db.collection('itineraries')
+      .aggregate([
+        {
+          $lookup: {
+            from: 'plans',
+            localField: 'planId',
+            foreignField: '_id',
+            as: 'plan'
+          }
+        },
+        {
+          $unwind: '$plan'
+        },
+        {
+          $project: {
+            '_id': 1,
+            'planId': 1,
+            'createdAt': 1,
+            'totalCost': 1,
+            'destination': '$plan.destination',
+            // Extract first date from dailyPlans array
+            'startDate': { 
+              $arrayElemAt: ['$dailyPlans.date', 0]
+            },
+            // Extract last date from dailyPlans array
+            'endDate': { 
+              $arrayElemAt: ['$dailyPlans.date', -1]
+            },
+            // Get number of days
+            'numberOfDays': { $size: '$dailyPlans' },
+            // Get total number of activities
+            'totalActivities': {
+              $reduce: {
+                input: '$dailyPlans',
+                initialValue: 0,
+                in: { 
+                  $add: ['$$value', { $size: '$$this.activities' }] 
+                }
+              }
+            }
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $skip: skip
+        },
+        {
+          $limit: limit
+        }
+      ]).toArray();
+
+    res.json({
+      itineraries,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
+        perPage: limit
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch itineraries:', error);
+    res.status(500).json({ message: 'Failed to fetch itineraries' });
+  }
+});
 // Get plan's itinerary
 router.get('/:planId/itinerary', async (req, res) => {
   try {

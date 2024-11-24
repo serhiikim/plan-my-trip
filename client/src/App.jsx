@@ -7,6 +7,7 @@ import { auth } from './services/auth';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
 import PlanPage from './pages/PlanPage';
+import ItinerariesPage from './pages/ItinerariesPage';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -40,7 +41,11 @@ function App() {
             {/* Redirect /plan to chat page where user can start new plan */}
             <Route 
               path="/plan" 
-              element={<Navigate to="/" replace />} 
+              element={
+                <ProtectedRoute>
+                  <ItinerariesPage />
+                </ProtectedRoute>
+              } 
             />
           </Routes>
           <Toaster />
