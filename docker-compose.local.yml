@@ -23,7 +23,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
     ports:
-      - "3002:3002"  # Vite's default dev server port
+      - "4173:4173"  # Vite's default dev server port
     env_file:
       - ./client/.env
     environment:
