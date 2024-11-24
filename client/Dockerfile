@@ -1,17 +1,18 @@
 FROM node:20
 WORKDIR /app
-# Copy package files
+
+# Copy package files first
 COPY package*.json ./
 RUN npm install
-# Copy the rest of the code
+
+# Copy .env file specifically before other files
+COPY ./client/.env ./.env
+
+# Then copy everything else
 COPY . .
 
-ARG VITE_API_URL
-ARG VITE_GOOGLE_CLIENT_ID
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
-
-# Build the app
+# Build the app (it will now have access to .env during build)
 RUN npm run build
+
 EXPOSE 4173
 CMD ["npm", "run", "preview", "--", "--host"]

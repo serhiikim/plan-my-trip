@@ -10,21 +10,15 @@ services:
       - PORT=3003
     restart: unless-stopped
 
-client:
+
+  client:
     image: travel-planner-client:latest
     ports:
       - "127.0.0.1:4173:4173"
     env_file:
-      - ./client/.env
+      - ./client/.env  # Point to the correct location
     environment:
       - NODE_ENV=production
-      - VITE_API_URL=https://plan-my-trip.logsfixer.com
-      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
-    build:
-      context: ./client
-      args:
-        - VITE_API_URL=https://plan-my-trip.logsfixer.com
-        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     depends_on:
       - server
     restart: unless-stopped
