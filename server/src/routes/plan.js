@@ -33,6 +33,19 @@ router.get('/itineraries', async (req, res) => {
     const itineraries = await db.collection('itineraries')
       .aggregate([
         {
+          // Start with sorting by createdAt
+          $sort: { 
+            createdAt: -1  // -1 for descending order (newest first)
+          }
+        },
+        {
+          // Then skip for pagination after sorting
+          $skip: skip
+        },
+        {
+          $limit: limit
+        },
+        {
           $lookup: {
             from: 'plans',
             localField: 'planId',
@@ -50,17 +63,13 @@ router.get('/itineraries', async (req, res) => {
             'createdAt': 1,
             'totalCost': 1,
             'destination': '$plan.destination',
-            // Extract first date from dailyPlans array
             'startDate': { 
               $arrayElemAt: ['$dailyPlans.date', 0]
             },
-            // Extract last date from dailyPlans array
             'endDate': { 
               $arrayElemAt: ['$dailyPlans.date', -1]
             },
-            // Get number of days
             'numberOfDays': { $size: '$dailyPlans' },
-            // Get total number of activities
             'totalActivities': {
               $reduce: {
                 input: '$dailyPlans',
@@ -71,15 +80,6 @@ router.get('/itineraries', async (req, res) => {
               }
             }
           }
-        },
-        {
-          $sort: { createdAt: -1 }
-        },
-        {
-          $skip: skip
-        },
-        {
-          $limit: limit
         }
       ]).toArray();
 

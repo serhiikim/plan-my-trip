@@ -36,7 +36,7 @@ export const QUESTIONS = {
 
     [CHAT_STAGES.DATES]: {
       text: "📅 When would you like to travel?\nClick the calendar icon to select dates, or type in format: DD/MM/YYYY - DD/MM/YYYY",
-      nextStage: CHAT_STAGES.FLIGHT_BOOKED,
+      nextStage: CHAT_STAGES.TRAVEL_GROUP,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
         const dateRegex = /^\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}$/;

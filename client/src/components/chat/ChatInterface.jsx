@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { SendHorizontal, Loader2 } from "lucide-react";
+import { SendHorizontal, Loader2, Check } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,14 @@ import { Progress } from "@/components/ui/progress";
 import { planApi } from '@/services/api';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+const QUICK_REPLIES = {
+    [CHAT_STAGES.FLIGHT_BOOKED]: ['Yes', 'No'],
+    [CHAT_STAGES.ACCOMMODATION_BOOKED]: ['Yes', 'No'],
+    [CHAT_STAGES.TRANSPORTATION]: ['Public Transport', 'Car Rental', 'Walking', 'Mixed'],
+    [CHAT_STAGES.TRAVEL_GROUP]: ['Solo', 'Couple', 'Family', 'Friends'],
+  };
+
 
 export function ChatInterface() {
   const [message, setMessage] = useState('');
@@ -126,6 +134,85 @@ export function ChatInterface() {
     await processUserInput(flightDetails);
   };
 
+
+  const renderQuickReplies = () => {
+    const currentStage = chatbot.getCurrentQuestion().stage;
+    const options = QUICK_REPLIES[currentStage];
+
+    if (!options) return null;
+
+    return (
+      <div className="flex flex-wrap gap-2 mb-4">
+        {options.map((option) => (
+          <Button
+            key={option}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={() => processUserInput(option)}
+            disabled={isLoading || isSubmitting}
+          >
+            <span>{option}</span>
+          </Button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderInputSection = () => {
+    const currentQuestion = chatbot.getCurrentQuestion();
+    
+    // Show date picker
+    if (showDatePicker) {
+      return (
+        <div className="mb-4">
+          <DateRangePicker onSelect={handleDateSelect} />
+        </div>
+      );
+    }
+
+    // Show flight picker
+    if (showFlightPicker) {
+      return (
+        <div className="mb-4">
+          <FlightDateTimePicker onSelect={handleFlightSelect} />
+        </div>
+      );
+    }
+    return (
+        <>
+          {/* Quick Reply Options */}
+          {renderQuickReplies()}
+  
+          {/* Text Input */}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Input
+              ref={inputRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={
+                currentQuestion.stage === CHAT_STAGES.FLIGHT_DETAILS
+                  ? "Or use the date/time picker above..."
+                  : "Type your message..."
+              }
+              className="flex-1"
+              disabled={isLoading || isSubmitting}
+            />
+            <Button
+              type="submit"
+              disabled={isLoading || isSubmitting || !message.trim()}
+              size="icon"
+            >
+              <SendHorizontal className={cn(
+                "h-4 w-4",
+                (isLoading || isSubmitting) && "animate-pulse"
+              )} />
+            </Button>
+          </form>
+        </>
+      );
+    };
+
   // Processes user input and updates the chat interface
   const processUserInput = async (input) => {
     setIsLoading(true);
@@ -235,44 +322,9 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Form */}
+        {/* Input Section */}
         <div className="p-4 bg-background border-t space-y-4">
-          {showDatePicker && (
-            <div className="mb-4">
-              <DateRangePicker onSelect={handleDateSelect} />
-            </div>
-          )}
-
-          {showFlightPicker && (
-            <div className="mb-4">
-              <FlightDateTimePicker onSelect={handleFlightSelect} />
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={
-                chatbot.getCurrentQuestion().stage === CHAT_STAGES.FLIGHT_DETAILS
-                  ? "Or use the date/time picker above..."
-                  : "Type your message..."
-              }
-              className="flex-1"
-              disabled={isLoading || showDatePicker || showFlightPicker || isSubmitting}
-            />
-            <Button
-              type="submit"
-              disabled={isLoading || showDatePicker || showFlightPicker || isSubmitting}
-              size="icon"
-            >
-              <SendHorizontal className={cn(
-                "h-4 w-4",
-                (isLoading || isSubmitting) && "animate-pulse"
-              )} />
-            </Button>
-          </form>
+          {renderInputSection()}
         </div>
       </Card>
     </div>

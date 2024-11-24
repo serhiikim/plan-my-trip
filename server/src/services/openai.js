@@ -43,6 +43,7 @@ export async function generateTravelPlan(planData) {
   Dates: ${planData.dates}
   Interests: ${planData.interests}
   Budget: ${planData.budget}
+  Travel Group: ${planData.travel_group}
   Transportation: ${planData.transportation}
   ${planData.flight?.booked ? `Flight Details: ${planData.flight.details}` : ''}
   ${planData.accommodation?.booked ? `Accommodation: ${planData.accommodation.details}` : ''}`;
