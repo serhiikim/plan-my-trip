@@ -10,6 +10,7 @@ import { FlightDateTimePicker } from '@/components/common/FlightDateTimePicker';
 import { chatService } from '@/services/chat';
 import { chatbot, CHAT_STAGES, QUESTIONS } from '@/services/chatbot';
 import { Progress } from "@/components/ui/progress";
+import { planApi } from '@/services/api';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +18,7 @@ export function ChatInterface() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showFlightPicker, setShowFlightPicker] = useState(false);
@@ -25,6 +27,57 @@ export function ChatInterface() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+
+  const handlePlanSubmission = async (travelData) => {
+    setIsSubmitting(true);
+    try {
+      setMessages(prev => [...prev, {
+        id: 'submitting',
+        type: 'assistant',
+        content: "Creating your travel plan...",
+        timestamp: new Date()
+      }]);
+  
+      // Create the plan
+      const response = await chatService.submitTravelPlan(travelData);
+  
+      setMessages(prev => [...prev, {
+        id: 'success',
+        type: 'assistant',
+        content: "Thank you! Your travel plan has been created and is being generated. Redirecting you to view the progress...",
+        timestamp: new Date()
+      }]);
+  
+      // Start generation in background - don't await it
+      planApi.generateItinerary(response.planId).catch(error => {
+        console.error('Background generation failed:', error);
+      });
+  
+      // Give user time to read the message
+      await new Promise(resolve => setTimeout(resolve, 2000));
+  
+      // Navigate to plan page
+      navigate(`/plans/${response.planId}?new=true`, { replace: true });
+  
+    } catch (error) {
+      console.error('Failed to submit travel plan:', error);
+      setMessages(prev => prev.filter(msg => msg.id !== 'submitting'));
+      setMessages(prev => [...prev, {
+        id: 'error',
+        type: 'assistant',
+        content: "Sorry, there was an error creating your travel plan. Would you like to try again?",
+        timestamp: new Date()
+      }]);
+  
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to create travel plan. Please try again."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   // Scrolls the chat to the latest message
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,6 +131,7 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
+      // Add user message
       setMessages(prev => [...prev, {
         id: Date.now(),
         type: 'user',
@@ -85,6 +139,7 @@ export function ChatInterface() {
         timestamp: new Date()
       }]);
 
+      // Show typing indicator
       setMessages(prev => [...prev, {
         id: 'typing',
         type: 'assistant',
@@ -93,6 +148,7 @@ export function ChatInterface() {
 
       const response = chatbot.processResponse(input);
 
+      // Remove typing indicator
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
 
       if (!response.isValid) {
@@ -124,25 +180,9 @@ export function ChatInterface() {
           setShowFlightPicker(true);
         }
 
-        if (response.isComplete) {
+        if (response.isComplete && !isSubmitting) {
           const travelData = chatbot.getTravelData();
-          try {
-            const response = await chatService.submitTravelPlan(travelData);
-            
-            toast({
-              title: "Success",
-              description: "Travel plan data collected! Redirecting to generation..."
-            });
-
-            navigate(`/plans/${response.planId}?new=true`);
-          } catch (error) {
-            console.error('Failed to submit travel plan:', error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: error.message || "Failed to submit travel plan. Please try again."
-            });
-          }
+          await handlePlanSubmission(travelData);
         }
       }
     } catch (error) {
@@ -195,7 +235,7 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input & Pickers */}
+        {/* Input Form */}
         <div className="p-4 bg-background border-t space-y-4">
           {showDatePicker && (
             <div className="mb-4">
@@ -220,16 +260,16 @@ export function ChatInterface() {
                   : "Type your message..."
               }
               className="flex-1"
-              disabled={isLoading || showDatePicker || showFlightPicker}
+              disabled={isLoading || showDatePicker || showFlightPicker || isSubmitting}
             />
             <Button
               type="submit"
-              disabled={isLoading || showDatePicker || showFlightPicker}
+              disabled={isLoading || showDatePicker || showFlightPicker || isSubmitting}
               size="icon"
             >
               <SendHorizontal className={cn(
                 "h-4 w-4",
-                isLoading && "animate-pulse"
+                (isLoading || isSubmitting) && "animate-pulse"
               )} />
             </Button>
           </form>

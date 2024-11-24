@@ -43,16 +43,33 @@ export const planApi = {
     }
   },
 
+
   // Get itinerary for a plan
   getItinerary: async (planId) => {
     try {
       const { data } = await api.get(`/plans/${planId}/itinerary`);
-      return data;
+      
+      // Add explicit status handling
+      if (data.plan.status === 'pending_generation') {
+        return { status: 'pending_generation' };
+      }
+      if (data.plan.status === 'generating') {
+        return { status: 'generating' };
+      }
+      if (data.plan.status === 'error') {
+        throw new Error(data.plan.errorMessage || 'Generation failed');
+      }
+      
+      return {
+        status: data.plan.status,
+        itinerary: data.itinerary,
+        plan: data.plan
+      };
     } catch (error) {
       if (error.response?.status === 404) {
         throw new Error('not_found');
       }
-      throw new Error(error.response?.data?.message || 'Failed to fetch itinerary');
+      throw error;
     }
   },
 
