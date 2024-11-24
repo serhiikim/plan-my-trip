@@ -18,7 +18,7 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <StoreProvider>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <GoogleOAuthProvider clientId='1033578669045-vhl44tbljn882e8qa1nqd57i0k0v3c5f.apps.googleusercontent.com'>
         <Router>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
