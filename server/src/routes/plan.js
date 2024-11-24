@@ -21,18 +21,24 @@ const validateObjectId = (req, res, next) => {
 
 // Get plan's itinerary
 router.get('/:planId/itinerary', async (req, res) => {
-    try {
-      const planId = new ObjectId(req.params.planId);
-  
-      // Get both plan and itinerary
-      const [plan, itinerary] = await Promise.all([
-        db.collection('plans').findOne({ _id: planId }),
-        db.collection('itineraries').findOne({ planId })
-      ]);
-  
-      if (!plan) {
-        return res.status(404).json({ message: 'Plan not found' });
-      }
+  try {
+    const itineraryId = new ObjectId(req.params.planId); // This is actually the itinerary ID
+
+    // Find the itinerary first
+    const itinerary = await db.collection('itineraries').findOne({ _id: itineraryId });
+
+    if (!itinerary) {
+      return res.status(404).json({ message: 'Itinerary not found' });
+    }
+
+    const planId = itinerary.planId; // Extract the planId from the itinerary
+
+    // Now find the plan using the extracted planId
+    const plan = await db.collection('plans').findOne({ _id: planId });
+
+    if (!plan) {
+      return res.status(404).json({ message: 'Plan not found' });
+    }
   
       // Return different responses based on plan status
       if (plan.status === 'error') {

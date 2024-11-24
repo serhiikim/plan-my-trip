@@ -55,8 +55,8 @@ export default function PlanPage() {
         return;
       }
   
-      const itineraryData = await planApi.getItinerary(planId);
-      
+      const response = await planApi.getItinerary(planId);
+      const itineraryData = response.itinerary;
       // Check if we have valid data
       if (!itineraryData?.dailyPlans?.length) {
         throw new Error('not_found');
