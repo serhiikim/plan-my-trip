@@ -1,16 +1,32 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Clock, Car } from 'lucide-react';
+import { MapPin, Clock, Car, Calendar } from 'lucide-react';
 import { ActivityDialog } from './ActivityDialog';
+import { format } from 'date-fns';
 
-export default function DayTimeline({ day }) {
+export default function DayTimeline({ day, index }) {
+  const formatDate = (dateString) => {
+    try {
+      return format(new Date(dateString), 'EEEE, MMMM d, yyyy');
+    } catch (error) {
+      console.error('Date parsing error:', error);
+      return dateString;
+    }
+  };
+
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={day.date}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <AccordionTrigger className="hover:no-underline">
-              <CardTitle className="text-xl">{day.date}</CardTitle>
+              <div className="flex items-center gap-6">
+                <CardTitle className="text-xl">Day {index + 1}</CardTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  {formatDate(day.date)}
+                </div>
+              </div>
             </AccordionTrigger>
             <span className="text-muted-foreground">Daily Budget: {day.dailyCost}</span>
           </CardHeader>

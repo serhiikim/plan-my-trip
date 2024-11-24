@@ -211,33 +211,10 @@ export default function PlanPage() {
     };
   
     const handleExport = async (format) => {
-      try {
-        toast({
-          title: "Exporting itinerary",
-          description: `Preparing your travel plan in ${format.toUpperCase()} format`
-        });
-        
-        const blob = await planApi.exportItinerary(planId, format);
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `travel-plan-${planId}.${format}`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-  
-        toast({
-          title: "Export successful",
-          description: "Your itinerary has been downloaded"
-        });
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Export failed",
-          description: error.message
-        });
-      }
+      toast({
+        title: "Export feature",
+        description: "Coming soon!"
+      });
     };
   
     const handleShare = async () => {
@@ -354,10 +331,6 @@ export default function PlanPage() {
                     <FileText className="mr-2 h-4 w-4" />
                     Export as PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('json')}>
-                    <FileIcon className="mr-2 h-4 w-4" />
-                    Export as JSON
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleShare}>
                     <Share2 className="mr-2 h-4 w-4" />
@@ -386,10 +359,14 @@ export default function PlanPage() {
           </Card>
   
           <div className="space-y-4">
-            {data.dailyPlans.map((day) => (
-              <DayTimeline key={day.date} day={day} />
-            ))}
-          </div>
+  {data.dailyPlans.map((day, index) => (
+    <DayTimeline 
+      key={day.date} 
+      day={day} 
+      index={index}
+    />
+  ))}
+</div>
   
           {data.generalNotes && (
             <Card>

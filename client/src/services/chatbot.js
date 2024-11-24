@@ -1,14 +1,15 @@
 export const CHAT_STAGES = {
-    DESTINATION: 'destination',
-    DATES: 'dates',
-    FLIGHT_BOOKED: 'flight_booked',
-    FLIGHT_DETAILS: 'flight_details',
-    ACCOMMODATION_BOOKED: 'accommodation_booked',
-    ACCOMMODATION_DETAILS: 'accommodation_details',
-    INTERESTS: 'interests',
-    BUDGET: 'budget',
-    TRANSPORTATION: 'transportation',
-    COMPLETE: 'complete'
+  DESTINATION: 'destination',
+  DATES: 'dates',
+  TRAVEL_GROUP: 'travel_group', // New stage
+  FLIGHT_BOOKED: 'flight_booked',
+  FLIGHT_DETAILS: 'flight_details',
+  ACCOMMODATION_BOOKED: 'accommodation_booked',
+  ACCOMMODATION_DETAILS: 'accommodation_details',
+  INTERESTS: 'interests',
+  BUDGET: 'budget',
+  TRANSPORTATION: 'transportation',
+  COMPLETE: 'complete'
 };
 
 export const QUESTIONS = {
@@ -22,6 +23,17 @@ export const QUESTIONS = {
       errorMessage: "Please specify both city and country, separated by a comma (e.g., 'Rome, Italy')"
     },
     
+    [CHAT_STAGES.TRAVEL_GROUP]: {
+      text: "👥 Who are you traveling with?\nChoose one: solo, couple, family, friends",
+      nextStage: CHAT_STAGES.FLIGHT_BOOKED,
+      validate: (input) => {
+        if (!input || typeof input !== 'string') return false;
+        const validOptions = ['solo', 'couple', 'family', 'friends'];
+        return validOptions.includes(input.toLowerCase());
+      },
+      errorMessage: "Please choose one: solo, couple, family, or friends"
+    },
+
     [CHAT_STAGES.DATES]: {
       text: "📅 When would you like to travel?\nClick the calendar icon to select dates, or type in format: DD/MM/YYYY - DD/MM/YYYY",
       nextStage: CHAT_STAGES.FLIGHT_BOOKED,
@@ -111,14 +123,10 @@ export const QUESTIONS = {
     },
 
     [CHAT_STAGES.BUDGET]: {
-      text: "💰 What's your total budget for this trip in USD?\nPlease enter a number, for example: '3000' or '5000'",
+      text: "💰 What's your total budget for this trip?\nFor example: '3000 USD', '2500 EUR', or any other currency",
       nextStage: CHAT_STAGES.TRANSPORTATION,
-      validate: (input) => {
-        if (!input || typeof input !== 'string') return false;
-        const number = parseInt(input.replace(/[,$]/g, ''));
-        return !isNaN(number) && number > 0;
-      },
-      errorMessage: "Please enter a valid budget amount in USD (numbers only)"
+      validate: (input) => input && input.length > 0,
+      errorMessage: "Please provide your budget"
     },
 
     [CHAT_STAGES.TRANSPORTATION]: {
