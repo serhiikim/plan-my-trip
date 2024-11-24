@@ -1,12 +1,8 @@
-version: '3.8'
-
 services:
   server:
-    build: 
-      context: ./server
-      dockerfile: Dockerfile
+    image: travel-planner-server:latest
     ports:
-      - "3003:3003"  # This port matches your Nginx proxy_pass
+      - "127.0.0.1:3003:3003"
     env_file:
       - ./server/.env
     environment:
@@ -15,11 +11,9 @@ services:
     restart: unless-stopped
 
   client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
+    image: travel-planner-client:latest
     ports:
-      - "3002:3002"  # This port matches your Nginx proxy_pass
+      - "127.0.0.1:4173:4173"
     env_file:
       - ./client/.env
     environment:
