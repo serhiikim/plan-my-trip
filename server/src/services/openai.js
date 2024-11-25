@@ -1,4 +1,3 @@
-// server/src/services/openai.js
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 
@@ -36,7 +35,20 @@ export async function generateTravelPlan(planData) {
   - Group nearby attractions together
   - Local customs and practices
   - Weather-appropriate activities
-  - Budget constraints for activities and meals`;
+  - Budget constraints for activities and meals
+  ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}
+  
+  Important Budget Rules:
+  - ALL costs should be for the entire group, NOT per person(exception is a solo trip)
+  - Do not split or show per-person costs
+  - Include group tickets/packages where available
+  - For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
+  
+  Important Group Considerations Based on Travel Group Type:
+  - Solo: Focus on solo-friendly activities and safety considerations
+  - Couple: Include romantic spots and activities suitable for pairs
+  - Family: Prioritize family-friendly locations, kid-appropriate activities, and earlier dining times
+  - Friends: Focus on social activities, group-friendly venues, and shared experiences`;
 
   const userPrompt = `Create a travel plan for:
   Destination: ${planData.destination}
@@ -46,16 +58,28 @@ export async function generateTravelPlan(planData) {
   Travel Group: ${planData.travel_group}
   Transportation: ${planData.transportation}
   ${planData.flight?.booked ? `Flight Details: ${planData.flight.details}` : ''}
-  ${planData.accommodation?.booked ? `Accommodation: ${planData.accommodation.details}` : ''}`;
+  ${planData.accommodation?.booked ? `Accommodation: ${planData.accommodation.details}` : ''}
+  ${planData.regenerationInstructions ? `\n\nSpecial Instructions for this plan:\n${planData.regenerationInstructions}` : ''}`;
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt }
+  ];
+
+  // If this is a regeneration with instructions, add an additional system message
+  if (planData.regenerationInstructions) {
+    messages.push({
+      role: "system",
+      content: `Make sure to modify the previous plan according to these special instructions: ${planData.regenerationInstructions}. 
+      The changes should be meaningful and clearly reflect the user's requests while maintaining the overall quality and structure of the itinerary.`
+    });
+  }
 
   try {
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.7,
+      messages,
+      temperature: planData.regenerationInstructions ? 0.8 : 0.7, // Slightly higher temperature for regeneration to ensure variation
       response_format: { type: "json_object" }
     });
 
@@ -69,5 +93,15 @@ export async function generateTravelPlan(planData) {
   } catch (error) {
     console.error('OpenAI API Error:', error);
     throw error;
+  }
+}
+
+// Helper function to ensure dates are in correct format
+function formatDate(dateString) {
+  try {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  } catch (error) {
+    return dateString;
   }
 }

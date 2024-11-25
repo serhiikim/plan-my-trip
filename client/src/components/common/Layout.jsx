@@ -25,7 +25,7 @@ export function Layout({ children }) {
         <div className="container flex h-14 items-center justify-between max-w-6xl mx-auto px-4">
           <div className="flex items-center space-x-4">
             <h1 
-              onClick={() => navigate('/')} 
+              onClick={() => navigate('/chat')} 
               className="text-xl font-semibold hover:opacity-80 cursor-pointer"
             >
               Travel Planner
@@ -34,7 +34,7 @@ export function Layout({ children }) {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/chat')}
                 className="text-sm"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />

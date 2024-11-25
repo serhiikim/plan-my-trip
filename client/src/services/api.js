@@ -108,9 +108,11 @@ export const planApi = {
   },
 
   // Regenerate itinerary (new)
-  regenerateItinerary: async (planId) => {
+  regenerateItinerary: async (planId, instructions = null) => {
     try {
-      const { data } = await api.post(`/plans/${planId}/regenerate`);
+      const { data } = await api.post(`/plans/${planId}/regenerate`, {
+        instructions: instructions
+      });
       return data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to regenerate itinerary');
