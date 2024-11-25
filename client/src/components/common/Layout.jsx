@@ -38,38 +38,18 @@ export function Layout({ children }) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/chat')}>
+        <DropdownMenuItem className="md:hidden" onClick={() => navigate('/chat')}>
           <MessageCircle className="h-4 w-4 mr-2" />
           Chat
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/plan')}>
+        <DropdownMenuItem className="md:hidden" onClick={() => navigate('/plan')}>
           <Map className="h-4 w-4 mr-2" />
           Plans
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="md:hidden" />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" />
           Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  const MobileNav = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={() => navigate('/chat')}>
-          <MessageCircle className="h-4 w-4 mr-2" />
-          Chat
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/plan')}>
-          <Map className="h-4 w-4 mr-2" />
-          Plans
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -79,7 +59,6 @@ export function Layout({ children }) {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-white sticky top-0 z-50">
         <div className="container flex h-14 items-center justify-between max-w-6xl mx-auto px-4">
-          {/* Logo and Navigation */}
           <div className="flex items-center space-x-4">
             <h1 
               onClick={() => navigate('/chat')} 
@@ -87,7 +66,6 @@ export function Layout({ children }) {
             >
               Travel Planner
             </h1>
-            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
               <Button 
                 variant="ghost" 
@@ -110,12 +88,8 @@ export function Layout({ children }) {
             </nav>
           </div>
 
-          {/* User Section */}
           {user && (
-            <div className="flex items-center space-x-2">
-              {/* Mobile Navigation */}
-              <MobileNav />
-              {/* User Menu */}
+            <div className="flex items-center">
               <UserMenu />
             </div>
           )}
