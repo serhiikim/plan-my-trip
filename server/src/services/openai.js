@@ -36,7 +36,19 @@ export async function generateTravelPlan(planData) {
   - Local customs and practices
   - Weather-appropriate activities
   - Budget constraints for activities and meals
-  ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}`;
+  ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}
+  
+  Important Budget Rules:
+  - ALL costs should be for the entire group, NOT per person(exception is a solo trip)
+  - Do not split or show per-person costs
+  - Include group tickets/packages where available
+  - For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
+  
+  Important Group Considerations Based on Travel Group Type:
+  - Solo: Focus on solo-friendly activities and safety considerations
+  - Couple: Include romantic spots and activities suitable for pairs
+  - Family: Prioritize family-friendly locations, kid-appropriate activities, and earlier dining times
+  - Friends: Focus on social activities, group-friendly venues, and shared experiences`;
 
   const userPrompt = `Create a travel plan for:
   Destination: ${planData.destination}
