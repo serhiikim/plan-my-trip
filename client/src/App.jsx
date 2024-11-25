@@ -12,7 +12,7 @@ import ItinerariesPage from './pages/ItinerariesPage';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 function ProtectedRoute({ children }) {
-  return auth.isAuthenticated() ? children : <Navigate to="/login" replace />;
+  return auth.isAuthenticated() ? children : <Navigate to="/" replace />;
 }
 
 function App() {
@@ -21,7 +21,7 @@ function App() {
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <Router>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<LoginPage />} />
             <Route
               path="/chat"
               element={
