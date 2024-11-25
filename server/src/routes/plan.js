@@ -103,23 +103,41 @@ router.get('/itineraries', async (req, res) => {
 router.get('/:planId/itinerary', async (req, res) => {
   try {
     const planId = new ObjectId(req.params.planId);
-    const userId = new ObjectId(req.user.userId);
 
-    // Find itinerary directly with userId check
-    const itinerary = await db.collection('itineraries').findOne({ 
-      planId,
-      userId
-    });
-
-    if (!itinerary) {
-      return res.status(404).json({ message: 'Itinerary not found' });
-    }
-
-    // Get the plan for additional info
+    // Find the plan
     const plan = await db.collection('plans').findOne({ _id: planId });
 
+    if (!plan) {
+      return res.status(404).json({ message: 'Plan not found' });
+    }
+
+    // Convert planId to ObjectId for the itinerary query
+    const itinerary = await db.collection('itineraries').findOne({ 
+      planId: new ObjectId(planId)  // Convert to ObjectId here
+    });
+
+    // Return different responses based on plan status
+    if (plan.status === 'error') {
+      return res.status(500).json({ 
+        message: 'Failed to generate itinerary',
+        error: plan.errorMessage 
+      });
+    }
+
+    if (plan.status === 'collecting_data') {
+      return res.status(400).json({ 
+        message: 'Plan data is still being collected' 
+      });
+    }
+
+    if (!itinerary && plan.status === 'generated') {
+      return res.status(404).json({ 
+        message: 'Itinerary not found' 
+      });
+    }
+
     res.json({
-      status: plan?.status || 'generated',
+      status: plan.status,
       plan,
       itinerary
     });
@@ -130,27 +148,34 @@ router.get('/:planId/itinerary', async (req, res) => {
 });
 
 // Generate itinerary for a plan
-router.post('/:planId/generate', async (req, res) => {
+router.post('/:planId/generate', validateObjectId, async (req, res) => {
   try {
-    const planId = new ObjectId(req.params.planId);
-    const userId = new ObjectId(req.user.userId);
+    const planId = req.validatedPlanId;
 
+    // Check if plan exists
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Generate new itinerary
+    // Check if itinerary already exists
+    const existingItinerary = await db.collection('itineraries').findOne({ planId });
+    if (existingItinerary) {
+      return res.status(400).json({ message: 'Itinerary already exists for this plan' });
+    }
+
+    // Generate itinerary using OpenAI
     const generatedPlan = await generateTravelPlan(plan);
 
-    // Always store userId in itinerary
-    await db.collection('itineraries').insertOne({
+    // Store the generated itinerary
+    const itineraryData = {
       planId,
-      userId,  // Store userId as ObjectId
       ...generatedPlan,
       createdAt: new Date(),
       updatedAt: new Date()
-    });
+    };
+
+    const result = await db.collection('itineraries').insertOne(itineraryData);
 
     // Update plan status
     await db.collection('plans').updateOne(
@@ -163,9 +188,25 @@ router.post('/:planId/generate', async (req, res) => {
       }
     );
 
-    res.json({ message: 'Itinerary generated successfully' });
+    res.json({ 
+      message: 'Itinerary generated successfully',
+      itineraryId: result.insertedId 
+    });
   } catch (error) {
     console.error('Failed to generate itinerary:', error);
+    
+    // Update plan status to error
+    await db.collection('plans').updateOne(
+      { _id: req.validatedPlanId },
+      { 
+        $set: {
+          status: 'error',
+          errorMessage: error.message,
+          updatedAt: new Date()
+        }
+      }
+    );
+
     res.status(500).json({ message: 'Failed to generate itinerary' });
   }
 });
@@ -174,44 +215,46 @@ router.post('/:planId/generate', async (req, res) => {
 router.post('/:planId/regenerate', async (req, res) => {
   try {
     const planId = new ObjectId(req.params.planId);
-    const userId = new ObjectId(req.user.userId);
     const { instructions } = req.body;
 
-    // First check if user owns the existing itinerary
-    const existingItinerary = await db.collection('itineraries').findOne({ 
-      planId,
-      userId
-    });
-
-    if (!existingItinerary) {
-      return res.status(404).json({ message: 'Itinerary not found' });
-    }
-
+    // Get the plan
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Delete existing itinerary
-    await db.collection('itineraries').deleteOne({ 
-      planId,
-      userId
-    });
+    // Delete existing itinerary if exists
+    await db.collection('itineraries').deleteOne({ planId });
 
-    // Generate and store new itinerary with regeneration instructions
-    const generatedPlan = await generateTravelPlan({
+    // Add instructions to the plan data if provided
+    const planData = {
       ...plan,
-      regenerationInstructions: instructions
-    });
+      regenerationInstructions: instructions || null
+    };
 
+    // Generate new itinerary with optional instructions
+    const generatedPlan = await generateTravelPlan(planData);
+
+    // Store the new itinerary
     await db.collection('itineraries').insertOne({
       planId,
-      userId,
       ...generatedPlan,
       regenerationInstructions: instructions || null,
       createdAt: new Date(),
       updatedAt: new Date()
     });
+
+    // Update plan status
+    await db.collection('plans').updateOne(
+      { _id: planId },
+      { 
+        $set: {
+          status: 'generated',
+          regenerationInstructions: instructions || null,
+          updatedAt: new Date()
+        }
+      }
+    );
 
     res.json({ 
       message: 'Itinerary regenerated successfully',
