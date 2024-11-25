@@ -98,6 +98,10 @@ export function ChatInterface() {
 
   // Initializes the first question on component mount
   useEffect(() => {
+    // Reset the chatbot state
+    chatbot.reset();
+    
+    // Initialize with first question
     const firstQuestion = chatbot.getCurrentQuestion();
     setMessages([{
       id: 'welcome',
@@ -105,6 +109,15 @@ export function ChatInterface() {
       content: firstQuestion.text,
       timestamp: new Date()
     }]);
+    
+    // Reset progress
+    setProgress(0);
+    
+    // Reset other state
+    setShowDatePicker(false);
+    setShowFlightPicker(false);
+    setMessage('');
+    
     inputRef.current?.focus();
   }, []);
 

@@ -156,6 +156,7 @@ class ChatBotService {
       this.travelData = {
         destination: null,
         dates: null,
+        travelGroup: null,  // Added this to match your stages
         flight: {
           booked: false,
           details: null
@@ -168,6 +169,16 @@ class ChatBotService {
         budget: null,
         transportation: null
       };
+      
+      // Clear any stored state
+      this.lastResponse = null;
+      this.isProcessing = false;
+    }
+
+    isInitialState() {
+      return this.currentStage === CHAT_STAGES.DESTINATION && 
+             !this.travelData.destination &&
+             !this.isProcessing;
     }
   
     getCurrentQuestion() {
