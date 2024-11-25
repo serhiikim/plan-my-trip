@@ -1,11 +1,10 @@
-// server/src/app.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { db } from './services/db.js';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
-import plansRoutes from './routes/plan.js';  // Add this
+import plansRoutes from './routes/plan.js';
 import { authMiddleware } from './middleware/auth.js';
 
 dotenv.config();
@@ -14,15 +13,23 @@ const app = express();
 
 // Middleware
 app.use(cors());
-
 app.use(express.json());
 
-// Public routes
-app.use('/auth', authRoutes);
+// Create API router
+const apiRouter = express.Router();
 
-// Protected routes
-app.use('/chat', authMiddleware, chatRoutes);
-app.use('/plans', authMiddleware, plansRoutes);  // Add this
+// API Routes
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/chat', authMiddleware, chatRoutes);
+apiRouter.use('/plans', authMiddleware, plansRoutes);
+
+// Mount all routes under /api
+app.use('/api', apiRouter);
+
+// Add a health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -42,6 +49,7 @@ async function startServer() {
     
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`API available at /api/*`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
