@@ -211,48 +211,58 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
 
 // Regenerate itinerary
 router.post('/:planId/regenerate', async (req, res) => {
-    try {
-      const planId = new ObjectId(req.params.planId);
-  
-      // Get the plan
-      const plan = await db.collection('plans').findOne({ _id: planId });
-      if (!plan) {
-        return res.status(404).json({ message: 'Plan not found' });
-      }
-  
-      // Delete existing itinerary if exists
-      await db.collection('itineraries').deleteOne({ planId });
-  
-      // Generate new itinerary
-      const generatedPlan = await generateTravelPlan(plan);
-  
-      // Store the new itinerary
-      await db.collection('itineraries').insertOne({
-        planId,
-        ...generatedPlan,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-  
-      // Update plan status
-      await db.collection('plans').updateOne(
-        { _id: planId },
-        { 
-          $set: {
-            status: 'generated',
-            updatedAt: new Date()
-          }
-        }
-      );
-  
-      res.json({ 
-        message: 'Itinerary regenerated successfully'
-      });
-    } catch (error) {
-      console.error('Failed to regenerate itinerary:', error);
-      res.status(500).json({ message: 'Failed to regenerate itinerary' });
+  try {
+    const planId = new ObjectId(req.params.planId);
+    const { instructions } = req.body;
+
+    // Get the plan
+    const plan = await db.collection('plans').findOne({ _id: planId });
+    if (!plan) {
+      return res.status(404).json({ message: 'Plan not found' });
     }
-  });
+
+    // Delete existing itinerary if exists
+    await db.collection('itineraries').deleteOne({ planId });
+
+    // Add instructions to the plan data if provided
+    const planData = {
+      ...plan,
+      regenerationInstructions: instructions || null
+    };
+
+    // Generate new itinerary with optional instructions
+    const generatedPlan = await generateTravelPlan(planData);
+
+    // Store the new itinerary
+    await db.collection('itineraries').insertOne({
+      planId,
+      ...generatedPlan,
+      regenerationInstructions: instructions || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Update plan status
+    await db.collection('plans').updateOne(
+      { _id: planId },
+      { 
+        $set: {
+          status: 'generated',
+          regenerationInstructions: instructions || null,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    res.json({ 
+      message: 'Itinerary regenerated successfully',
+      hasInstructions: !!instructions
+    });
+  } catch (error) {
+    console.error('Failed to regenerate itinerary:', error);
+    res.status(500).json({ message: 'Failed to regenerate itinerary' });
+  }
+});
 
   router.post('/create', async (req, res) => {
     try {

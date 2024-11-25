@@ -7,6 +7,8 @@ import DayTimeline from '../components/plan/DayTimeline';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +44,7 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [regenerateInstructions, setRegenerateInstructions] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const initialLoadRef = useRef(false);
@@ -194,10 +197,13 @@ export default function PlanPage() {
         
         toast({
           title: "Regenerating plan",
-          description: "Please wait while we create your new travel plan..."
+          description: regenerateInstructions
+            ? "Creating new plan with your special requests..."
+            : "Please wait while we create your new travel plan..."
         });
   
-        await planApi.regenerateItinerary(planId);
+        await planApi.regenerateItinerary(planId, regenerateInstructions.trim() || null);
+        setRegenerateInstructions(''); // Reset instructions
         startPolling();
       } catch (error) {
         setError(error.message);
@@ -379,20 +385,44 @@ export default function PlanPage() {
             </Card>
           )}
   
-          <AlertDialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Regenerate Itinerary</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will create a completely new travel plan. Your current itinerary will be replaced. Are you sure you want to continue?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRegenerate}>Continue</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+  <AlertDialog 
+        open={isRegenerateDialogOpen} 
+        onOpenChange={(open) => {
+          setIsRegenerateDialogOpen(open);
+          if (!open) setRegenerateInstructions(''); // Reset when dialog closes
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate Itinerary</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a completely new travel plan. Your current itinerary will be replaced.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="instructions">Special requests (optional)</Label>
+              <Textarea
+                id="instructions"
+                placeholder="Add any specific preferences or requests for your new itinerary. For example: 'Include more outdoor activities' or 'Focus on family-friendly locations'"
+                value={regenerateInstructions}
+                onChange={(e) => setRegenerateInstructions(e.target.value)}
+                className="h-24 resize-none"
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRegenerateInstructions('')}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRegenerate}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
         </div>
       </Layout>
     );
