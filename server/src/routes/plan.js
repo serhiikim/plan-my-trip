@@ -2,6 +2,8 @@ import express from 'express';
 import { db } from '../services/db.js';
 import { generateTravelPlan } from '../services/openai.js';
 import { ObjectId } from 'mongodb';
+import { locationService } from '../services/location.js';
+
 
 const router = express.Router();
 
@@ -100,12 +102,12 @@ router.get('/itineraries', async (req, res) => {
   }
 });
 // Get plan's itinerary
-router.get('/:planId/itinerary', async (req, res) => {
+router.get('/:planId/itinerary', validateObjectId, async (req, res) => {
   try {
-    const planId = new ObjectId(req.params.planId);
+    const planId = req.validatedPlanId;
     const userId = new ObjectId(req.user.userId);
 
-    // Find itinerary directly with userId check
+    // Find itinerary with userId check
     const itinerary = await db.collection('itineraries').findOne({ 
       planId,
       userId
@@ -118,39 +120,72 @@ router.get('/:planId/itinerary', async (req, res) => {
     // Get the plan for additional info
     const plan = await db.collection('plans').findOne({ _id: planId });
 
-    res.json({
-      status: plan?.status || 'generated',
-      plan,
-      itinerary
-    });
+    // If coordinates data is missing, enrich the itinerary
+    if (!itinerary.dailyPlans[0]?.activities[0]?.locationData) {
+      const enrichedItinerary = await locationService.enrichPlanWithLocations(itinerary);
+      
+      // Update the stored itinerary with location data
+      await db.collection('itineraries').updateOne(
+        { _id: itinerary._id },
+        { $set: { 
+          dailyPlans: enrichedItinerary.dailyPlans,
+          updatedAt: new Date()
+        }}
+      );
+
+      res.json({
+        status: plan?.status || 'generated',
+        plan,
+        itinerary: enrichedItinerary
+      });
+    } else {
+      res.json({
+        status: plan?.status || 'generated',
+        plan,
+        itinerary
+      });
+    }
   } catch (error) {
     console.error('Failed to fetch itinerary:', error);
     res.status(500).json({ message: 'Failed to fetch itinerary' });
   }
 });
 
+
 // Generate itinerary for a plan
-router.post('/:planId/generate', async (req, res) => {
+router.post('/:planId/generate', validateObjectId, async (req, res) => {
   try {
-    const planId = new ObjectId(req.params.planId);
+    const planId = req.validatedPlanId;
     const userId = new ObjectId(req.user.userId);
 
+    // Check if plan exists
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Generate new itinerary
+    // Check if itinerary already exists
+    const existingItinerary = await db.collection('itineraries').findOne({ planId });
+    if (existingItinerary) {
+      return res.status(400).json({ message: 'Itinerary already exists for this plan' });
+    }
+
+    // Generate itinerary using OpenAI
     const generatedPlan = await generateTravelPlan(plan);
 
-    // Always store userId in itinerary
-    await db.collection('itineraries').insertOne({
+    // Enrich with location data
+    const enrichedPlan = await locationService.enrichPlanWithLocations(generatedPlan);
+
+    // Store the generated itinerary
+    const itineraryData = {
       planId,
-      userId,  // Store userId as ObjectId
-      ...generatedPlan,
+      userId, // Include userId
+      ...enrichedPlan,
       createdAt: new Date(),
       updatedAt: new Date()
-    });
+    };
+
+    const result = await db.collection('itineraries').insertOne(itineraryData);
 
     // Update plan status
     await db.collection('plans').updateOne(
@@ -163,10 +198,54 @@ router.post('/:planId/generate', async (req, res) => {
       }
     );
 
-    res.json({ message: 'Itinerary generated successfully' });
+    res.json({ 
+      message: 'Itinerary generated successfully',
+      itineraryId: result.insertedId 
+    });
+
   } catch (error) {
     console.error('Failed to generate itinerary:', error);
+    
+    // Update plan status to error
+    await db.collection('plans').updateOne(
+      { _id: req.validatedPlanId },
+      { 
+        $set: {
+          status: 'error',
+          errorMessage: error.message,
+          updatedAt: new Date()
+        }
+      }
+    );
+
     res.status(500).json({ message: 'Failed to generate itinerary' });
+  }
+});
+
+// Add the locations endpoint
+router.get('/locations/:itineraryId', async (req, res) => {
+  try {
+    const itineraryId = new ObjectId(req.params.itineraryId);
+
+    const queueStatus = await db.collection('geocoding_queue')
+      .find({ itineraryId })
+      .toArray();
+
+    const locationCache = await db.collection('location_cache')
+      .find({ itineraryId })
+      .toArray();
+
+    res.json({
+      locations: locationCache,
+      processingStatus: {
+        total: queueStatus.length,
+        completed: queueStatus.filter(item => item.status === 'completed').length,
+        pending: queueStatus.filter(item => item.status === 'pending').length
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch location details:', error);
+    res.status(500).json({ message: 'Failed to fetch location details' });
   }
 });
 
