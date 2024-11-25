@@ -27,23 +27,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
- - name: Build and save Docker images
-  run: |
-    # Add timestamp to force rebuild
-    echo "BUILD_TIME=$(date)" > ./client/build-time.txt
-    echo "COMMIT_SHA=${{ github.sha }}" >> ./client/build-time.txt
+      - name: Build and save Docker images
+        run: |
+          # Add timestamp to force rebuild
+          echo "BUILD_TIME=$(date)" > ./client/build-time.txt
+          echo "COMMIT_SHA=${{ github.sha }}" >> ./client/build-time.txt
+          
+          # Build with no-cache option and pass environment variables
+          docker build --no-cache \
+            --build-arg VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }} \
+            --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+            -t travel-planner-client:latest ./client
+          
+          docker build --no-cache -t travel-planner-server:latest ./server
     
-    # Build with no-cache option and pass environment variables
-    docker build --no-cache \
-      --build-arg VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }} \
-      --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
-      -t travel-planner-client:latest ./client
-    
-    docker build --no-cache -t travel-planner-server:latest ./server
-    
-    # Save images
-    docker save travel-planner-client:latest > client.tar
-    docker save travel-planner-server:latest > server.tar
+          # Save images
+          docker save travel-planner-client:latest > client.tar
+          docker save travel-planner-server:latest > server.tar
 
 
       - name: Copy files to Hetzner
