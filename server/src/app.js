@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { db } from './services/db.js';
-import { geocoding } from './services/geocoding.js';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import plansRoutes from './routes/plan.js';
@@ -43,22 +42,11 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3003;
 
-let geocodingInterval;
-
-// Initialize the database connection and start background processes
+// Initialize the database connection and start server
 async function startServer() {
   try {
     await db.connect();
     
-    // Start geocoding queue processor
-    geocodingInterval = setInterval(async () => {
-      try {
-        await geocoding.processGeocodingQueue();
-      } catch (error) {
-        console.error('Error processing geocoding queue:', error);
-      }
-    }, 30000); // Process every 30 seconds
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`API available at /api/*`);
@@ -75,11 +63,6 @@ process.on('SIGINT', cleanup);
 
 async function cleanup() {
   console.log('Cleaning up...');
-  
-  // Clear the geocoding interval
-  if (geocodingInterval) {
-    clearInterval(geocodingInterval);
-  }
 
   // Close database connection
   try {
