@@ -195,26 +195,24 @@ router.get('/:planId/itinerary', async (req, res) => {
 router.post('/:planId/generate', validateObjectId, async (req, res) => {
   try {
     const planId = req.validatedPlanId;
+    const userId = new ObjectId(req.user.userId); // Get userId
 
-    // Check if plan exists
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Check if itinerary already exists
     const existingItinerary = await db.collection('itineraries').findOne({ planId });
     if (existingItinerary) {
       return res.status(400).json({ message: 'Itinerary already exists for this plan' });
     }
 
-    // Generate itinerary using OpenAI
     const generatedPlan = await generateTravelPlan(plan);
     const enrichedPlan = await locationService.enrichPlanWithLocations(generatedPlan, plan);
 
-    // Store the generated itinerary
     const itineraryData = {
       planId,
+      userId, // Add userId
       ...enrichedPlan,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -260,30 +258,27 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
 router.post('/:planId/regenerate', async (req, res) => {
   try {
     const planId = new ObjectId(req.params.planId);
+    const userId = new ObjectId(req.user.userId); // Get userId
     const { instructions } = req.body;
 
-    // Get the plan
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Delete existing itinerary if exists
     await db.collection('itineraries').deleteOne({ planId });
 
-    // Add instructions to the plan data if provided
     const planData = {
       ...plan,
       regenerationInstructions: instructions || null
     };
 
-    // Generate new itinerary with optional instructions
     const generatedPlan = await generateTravelPlan(planData);
     const enrichedPlan = await locationService.enrichPlanWithLocations(generatedPlan, plan);
 
-    // Store the new itinerary
     await db.collection('itineraries').insertOne({
       planId,
+      userId, // Add userId
       ...enrichedPlan,
       regenerationInstructions: instructions || null,
       createdAt: new Date(),
@@ -314,16 +309,15 @@ router.post('/:planId/regenerate', async (req, res) => {
 
 router.post('/create', async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = new ObjectId(req.user.userId); // Convert to ObjectId
     const planData = {
       ...req.body,
-      userId,
-      status: 'pending_generation', // Changed from 'collecting_data'
+      userId,  // Now it will be stored as ObjectId
+      status: 'pending_generation',
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    // Create plan only
     const result = await db.collection('plans').insertOne(planData);
     const planId = result.insertedId;
     
