@@ -4,7 +4,6 @@ import { generateTravelPlan } from '../services/openai.js';
 import { ObjectId } from 'mongodb';
 import { locationService } from '../services/location.js';
 
-
 const router = express.Router();
 
 // Middleware to validate ObjectId
@@ -62,7 +61,7 @@ router.post('/:itineraryId/reprocess-locations', async (req, res) => {
     res.status(500).json({ message: 'Failed to reprocess locations' });
   }
 });
-// plan.js
+
 router.get('/itineraries', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -143,6 +142,7 @@ router.get('/itineraries', async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch itineraries' });
   }
 });
+
 // Get plan's itinerary
 router.get('/:planId/itinerary', async (req, res) => {
   try {
@@ -157,7 +157,7 @@ router.get('/:planId/itinerary', async (req, res) => {
 
     // Convert planId to ObjectId for the itinerary query
     const itinerary = await db.collection('itineraries').findOne({ 
-      planId: new ObjectId(planId)  // Convert to ObjectId here
+      planId: new ObjectId(planId)
     });
 
     // Return different responses based on plan status
@@ -312,29 +312,29 @@ router.post('/:planId/regenerate', async (req, res) => {
   }
 });
 
-  router.post('/create', async (req, res) => {
-    try {
-      const userId = req.user.userId;
-      const planData = {
-        ...req.body,
-        userId,
-        status: 'pending_generation', // Changed from 'collecting_data'
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-  
-      // Create plan only
-      const result = await db.collection('plans').insertOne(planData);
-      const planId = result.insertedId;
-      
-      res.json({ 
-        message: 'Travel plan created successfully',
-        planId: planId
-      });
-    } catch (error) {
-      console.error('Failed to create plan:', error);
-      res.status(500).json({ message: 'Failed to create travel plan' });
-    }
-  });
+router.post('/create', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const planData = {
+      ...req.body,
+      userId,
+      status: 'pending_generation', // Changed from 'collecting_data'
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Create plan only
+    const result = await db.collection('plans').insertOne(planData);
+    const planId = result.insertedId;
+    
+    res.json({ 
+      message: 'Travel plan created successfully',
+      planId: planId
+    });
+  } catch (error) {
+    console.error('Failed to create plan:', error);
+    res.status(500).json({ message: 'Failed to create travel plan' });
+  }
+});
 
 export default router;
