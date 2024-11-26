@@ -38,6 +38,7 @@ import {
   FileText,
   Trash2,
 } from 'lucide-react';
+import { PlanLoader } from '@/components/common/PlanLoader';
 
 export default function PlanPage() {
   const { planId } = useParams();
@@ -250,22 +251,13 @@ export default function PlanPage() {
     };
   }, [planId]);
   
-    if (loading || isGenerating) {
-      return (
-        <Layout>
-          <div className="container max-w-4xl">
-            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-muted-foreground">
-                {isGenerating 
-                  ? "AI is creating your perfect travel plan..."
-                  : "Loading your travel plan..."}
-              </p>
-            </div>
-          </div>
-        </Layout>
-      );
-    }
+  if (loading || isGenerating) {
+    return (
+      <Layout>
+        <PlanLoader isGenerating={isGenerating} />
+      </Layout>
+    );
+  }
   
     if (error) {
       return (
