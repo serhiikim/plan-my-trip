@@ -11,13 +11,14 @@ export async function generateTravelPlan(planData) {
   const systemPrompt = `You are an expert travel planner. Your task is to generate a detailed day-by-day itinerary based on user preferences.
   You must respond in valid JSON format with the following structure:
   {
+    "destination": "Formatted city, country (e.g., 'New York, USA', 'Malaga, Spain', 'Paris, France')",
     "dailyPlans": [{
       "date": "YYYY-MM-DD",
       "activities": [{
         "time": "HH:MM",
         "duration": "X hours",
         "activity": "Description",
-        "location": "Place name",
+        "location": "Exact place name with address or landmark (e.g., 'Empire State Building, 350 5th Ave', 'Louvre Museum, Rue de Rivoli')",
         "cost": "Estimated cost",
         "transportation": "How to get there",
         "notes": "Additional information"
@@ -37,6 +38,14 @@ export async function generateTravelPlan(planData) {
   - Weather-appropriate activities
   - Budget constraints for activities and meals
   ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}
+
+   Location Formatting Rules:
+  - Always include the full, searchable address or well-known landmark name
+  - For tourist attractions, use the official name followed by the street address
+  - For restaurants and shops, include both the establishment name and street address
+  - Avoid generic locations like "city center" or "downtown"
+  - Use consistent naming conventions throughout the itinerary
+  - Format addresses in a way that's recognizable by mapping services
   
   Important Budget Rules:
   - ALL costs should be for the entire group, NOT per person(exception is a solo trip)

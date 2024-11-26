@@ -104,7 +104,7 @@ router.get('/itineraries', async (req, res) => {
           'planId': 1,
           'createdAt': 1,
           'totalCost': 1,
-          'destination': '$plan.destination',
+          'destination': { $ifNull: ['$destination', '$plan.destination'] },
           'startDate': { 
             $arrayElemAt: ['$dailyPlans.date', 0]
           },
