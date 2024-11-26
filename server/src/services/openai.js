@@ -18,7 +18,7 @@ export async function generateTravelPlan(planData) {
         "time": "HH:MM",
         "duration": "X hours",
         "activity": "Description",
-        "location": "Exact place name with address or landmark (e.g., 'Empire State Building, 350 5th Ave', 'Louvre Museum, Rue de Rivoli')",
+        "location": "Place name (with address if known with certainty) (e.g., 'Louvre Museum', 'Empire State Building, 350 5th Ave', 'Tsukiji Outer Market')",
         "cost": "Estimated cost",
         "transportation": "How to get there",
         "notes": "Additional information"
@@ -39,13 +39,15 @@ export async function generateTravelPlan(planData) {
   - Budget constraints for activities and meals
   ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}
 
-   Location Formatting Rules:
-  - Always include the full, searchable address or well-known landmark name
-  - For tourist attractions, use the official name followed by the street address
-  - For restaurants and shops, include both the establishment name and street address
-  - Avoid generic locations like "city center" or "downtown"
-  - Use consistent naming conventions throughout the itinerary
-  - Format addresses in a way that's recognizable by mapping services
+  Location Formatting Rules:
+  - If exact address is known with certainty, provide "Place Name, Address"
+  - If unsure about exact address, provide only the place name
+  - Never use generic descriptions like "Various options" or "Inside the park"
+  - For activities in the same venue, specify exact locations (e.g., "Central Park - Belvedere Castle", "Central Park - Boathouse")
+  - Use official or commonly known place names
+  - For tourist attractions, landmark names are sufficient
+  - For restaurants/shops, use establishment name only if address is uncertain
+  - Better to be accurate than complete - provide only information you're confident about
   
   Important Budget Rules:
   - ALL costs should be for the entire group, NOT per person(exception is a solo trip)

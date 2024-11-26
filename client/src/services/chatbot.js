@@ -16,10 +16,7 @@ export const QUESTIONS = {
     [CHAT_STAGES.DESTINATION]: {
       text: "👋 Welcome! I'll help you plan your perfect trip.\n\n🌎 First, tell me what city and country would you like to visit?\nFor example: 'Paris, France' or 'Tokyo, Japan'",
       nextStage: CHAT_STAGES.DATES,
-      validate: (input) => {
-        if (!input || typeof input !== 'string') return false;
-        return input.length > 3 && input.includes(',');
-      },
+      validate: (input) => input && input.length > 0,
       errorMessage: "Please specify both city and country, separated by a comma (e.g., 'Rome, Italy')"
     },
     
@@ -35,14 +32,14 @@ export const QUESTIONS = {
     },
 
     [CHAT_STAGES.DATES]: {
-      text: "📅 When would you like to travel?\nClick the calendar icon to select dates, or type in format: DD/MM/YYYY - DD/MM/YYYY",
+      text: "📅 When would you like to travel?\nClick the calendar icon to select dates",
       nextStage: CHAT_STAGES.TRAVEL_GROUP,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
         const dateRegex = /^\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}$/;
         return dateRegex.test(input);
       },
-      errorMessage: "Please select dates from the calendar or enter in format: DD/MM/YYYY - DD/MM/YYYY",
+      errorMessage: "Please select dates from the calendar",
       showCalendar: true
     },
   
@@ -58,7 +55,7 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.FLIGHT_DETAILS]: {
-      text: "✈️ Please provide your flight details using the date/time picker above, or in this format:\nArrival: DD/MM/YYYY HH:MM\nDeparture: DD/MM/YYYY HH:MM",
+      text: "✈️ Please provide your flight details using the date/time picker above",
       nextStage: CHAT_STAGES.ACCOMMODATION_BOOKED,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
@@ -87,7 +84,7 @@ export const QUESTIONS = {
         // Check if departure is after arrival
         return departure > arrival;
       },
-      errorMessage: "Please use the date/time picker above or provide flight details in the format:\nArrival: DD/MM/YYYY HH:MM\nDeparture: DD/MM/YYYY HH:MM",
+      errorMessage: "Please use the date/time picker above",
       showFlightPicker: true
     },
   
@@ -112,13 +109,9 @@ export const QUESTIONS = {
       },
 
     [CHAT_STAGES.INTERESTS]: {
-      text: "🎯 What are your main interests?\nList 2-4 interests separated by commas.\nFor example: 'museums, food, shopping'",
+      text: "🎯 What are your main interests?\nFor example: 'museums, food, shopping'",
       nextStage: CHAT_STAGES.BUDGET,
-      validate: (input) => {
-        if (!input || typeof input !== 'string') return false;
-        const interests = input.split(',').map(i => i.trim()).filter(i => i.length > 0);
-        return interests.length >= 2 && interests.length <= 4;
-      },
+      validate: (input) => input && input.length > 0,
       errorMessage: "Please list 2-4 interests, separated by commas"
     },
 

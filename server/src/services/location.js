@@ -8,6 +8,7 @@ dotenv.config();
 class LocationService {
   constructor(dbService) {
     this.db = dbService;
+    this.geocodingEndpoint = 'https://maps.googleapis.com/maps/api/geocode/json';
   }
 
   async getCachedLocations(locations, cityContext) {
@@ -90,31 +91,41 @@ class LocationService {
       if (uncachedLocations.length > 0) {
         for (const location of uncachedLocations) {
           try {
-            const query = encodeURIComponent(`${location.location}, ${cityContext}`);
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json`;
+            // Construct the full address with city context
+            const fullAddress = `${location.location}, ${cityContext}`;
             
             const response = await axios({
               method: 'get',
-              url: url,
+              url: this.geocodingEndpoint,
               params: {
-                access_token: process.env.MAPBOX_ACCESS_TOKEN,
-                limit: 1,
-                types: 'poi,address'
+                address: fullAddress,
+                key: process.env.GOOGLE_MAPS_API_KEY
               }
             });
 
-            if (response.data?.features?.[0]) {
-              const feature = response.data.features[0];
-              const [longitude, latitude] = feature.center;
+            if (response.data?.status === 'OK' && response.data.results?.[0]) {
+              const result = response.data.results[0];
+              const { lat, lng } = result.geometry.location;
 
               const locationData = {
                 location: location.location,
                 cityContext,
-                coordinates: [latitude, longitude],
-                placeName: feature.place_name,
-                mapUrl: `https://www.google.com/maps?q=${latitude},${longitude}`,
-                updatedAt: new Date()
+                coordinates: [lat, lng],
+                placeName: result.formatted_address,
+                placeId: result.place_id,
+                mapUrl: `https://www.google.com/maps?q=${lat},${lng}`,
+                updatedAt: new Date(),
+                geocodingProvider: 'google'
               };
+
+              // Store additional useful data from Google's response
+              if (result.types) {
+                locationData.types = result.types;
+              }
+              
+              if (result.address_components) {
+                locationData.addressComponents = result.address_components;
+              }
 
               await this.db.collection('location_cache').updateOne(
                 { 
@@ -126,12 +137,27 @@ class LocationService {
               );
 
               cachedLocationMap[location.location] = locationData;
+              
+              // Log successful geocoding
+              console.log(`Successfully geocoded: ${location.location}`, {
+                coordinates: [lat, lng],
+                placeId: result.place_id
+              });
+            } else {
+              console.warn(`No results found for location: ${location.location}`, {
+                status: response.data.status,
+                errorMessage: response.data.error_message
+              });
             }
 
-            // Add a small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Add a delay to respect Google's rate limits
+            // Standard plan allows 50 requests per second
+            await new Promise(resolve => setTimeout(resolve, 20));
           } catch (error) {
-            console.error(`Failed to geocode location: ${location.location}`, error.message);
+            console.error(`Failed to geocode location: ${location.location}`, {
+              error: error.message,
+              response: error.response?.data
+            });
           }
         }
       }

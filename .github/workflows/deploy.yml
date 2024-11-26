@@ -37,6 +37,7 @@ jobs:
           docker build --no-cache \
             --build-arg VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }} \
             --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+            --build-arg VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }} \
             -t travel-planner-client:latest ./client
           
           docker build --no-cache -t travel-planner-server:latest ./server

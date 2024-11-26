@@ -254,6 +254,75 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
   }
 });
 
+router.delete('/:planId', async (req, res) => {
+  try {
+    const planId = new ObjectId(req.params.planId);
+    const userId = new ObjectId(req.user.userId);
+
+    // Find the plan and verify ownership
+    const plan = await db.collection('plans').findOne({
+      _id: planId,
+      userId
+    });
+
+    if (!plan) {
+      return res.status(404).json({ message: 'Plan not found' });
+    }
+
+    // Delete the associated itinerary
+    await db.collection('itineraries').deleteOne({
+      planId,
+      userId
+    });
+
+    // Delete the plan
+    await db.collection('plans').deleteOne({
+      _id: planId,
+      userId
+    });
+
+    res.json({ message: 'Plan and itinerary deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete plan:', error);
+    res.status(500).json({ message: 'Failed to delete plan' });
+  }
+});
+
+// Delete plan and itinerary by itinerary ID (for the itineraries list endpoint)
+router.delete('/itineraries/:itineraryId', async (req, res) => {
+  try {
+    const itineraryId = new ObjectId(req.params.itineraryId);
+    const userId = new ObjectId(req.user.userId);
+
+    // Find the itinerary and verify ownership
+    const itinerary = await db.collection('itineraries').findOne({
+      _id: itineraryId,
+      userId
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({ message: 'Itinerary not found' });
+    }
+
+    // Delete the plan
+    await db.collection('plans').deleteOne({
+      _id: itinerary.planId,
+      userId
+    });
+
+    // Delete the itinerary
+    await db.collection('itineraries').deleteOne({
+      _id: itineraryId,
+      userId
+    });
+
+    res.json({ message: 'Plan and itinerary deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete itinerary:', error);
+    res.status(500).json({ message: 'Failed to delete itinerary' });
+  }
+});
+
 // Regenerate itinerary
 router.post('/:planId/regenerate', async (req, res) => {
   try {
