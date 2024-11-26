@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { ObjectId } from 'mongodb';
 import { db } from './db.js';
+import dotenv from 'dotenv';
 
-const MAPBOX_API_KEY = 'pk.eyJ1Ijoic2VyZ2tpbSIsImEiOiJjbTN4ZHB6azcxYmp1MmlxdGU1bzExNnRhIn0.rownX8KAQaqJ7r8rKsQ2zQ';
+dotenv.config();
+
+const MAPBOX_API_KEY = process.env.MAPBOX_ACCESS_TOKEN;
 const BATCH_SIZE = 100; // Adjust based on your needs
 
 class GeocodingService {

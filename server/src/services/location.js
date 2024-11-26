@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { ObjectId } from 'mongodb';
 import { db } from './db.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class LocationService {
   constructor(dbService) {
