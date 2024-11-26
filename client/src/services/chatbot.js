@@ -32,14 +32,14 @@ export const QUESTIONS = {
     },
 
     [CHAT_STAGES.DATES]: {
-      text: "📅 When would you like to travel?\nClick the calendar icon to select dates, or type in format: DD/MM/YYYY - DD/MM/YYYY",
+      text: "📅 When would you like to travel?\nClick the calendar icon to select dates",
       nextStage: CHAT_STAGES.TRAVEL_GROUP,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
         const dateRegex = /^\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}$/;
         return dateRegex.test(input);
       },
-      errorMessage: "Please select dates from the calendar or enter in format: DD/MM/YYYY - DD/MM/YYYY",
+      errorMessage: "Please select dates from the calendar",
       showCalendar: true
     },
   
@@ -55,7 +55,7 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.FLIGHT_DETAILS]: {
-      text: "✈️ Please provide your flight details using the date/time picker above, or in this format:\nArrival: DD/MM/YYYY HH:MM\nDeparture: DD/MM/YYYY HH:MM",
+      text: "✈️ Please provide your flight details using the date/time picker above",
       nextStage: CHAT_STAGES.ACCOMMODATION_BOOKED,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
@@ -84,7 +84,7 @@ export const QUESTIONS = {
         // Check if departure is after arrival
         return departure > arrival;
       },
-      errorMessage: "Please use the date/time picker above or provide flight details in the format:\nArrival: DD/MM/YYYY HH:MM\nDeparture: DD/MM/YYYY HH:MM",
+      errorMessage: "Please use the date/time picker above",
       showFlightPicker: true
     },
   
