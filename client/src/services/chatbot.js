@@ -16,10 +16,7 @@ export const QUESTIONS = {
     [CHAT_STAGES.DESTINATION]: {
       text: "👋 Welcome! I'll help you plan your perfect trip.\n\n🌎 First, tell me what city and country would you like to visit?\nFor example: 'Paris, France' or 'Tokyo, Japan'",
       nextStage: CHAT_STAGES.DATES,
-      validate: (input) => {
-        if (!input || typeof input !== 'string') return false;
-        return input.length > 3 && input.includes(',');
-      },
+      validate: (input) => input && input.length > 0,
       errorMessage: "Please specify both city and country, separated by a comma (e.g., 'Rome, Italy')"
     },
     
@@ -112,13 +109,9 @@ export const QUESTIONS = {
       },
 
     [CHAT_STAGES.INTERESTS]: {
-      text: "🎯 What are your main interests?\nList 2-4 interests separated by commas.\nFor example: 'museums, food, shopping'",
+      text: "🎯 What are your main interests?\nFor example: 'museums, food, shopping'",
       nextStage: CHAT_STAGES.BUDGET,
-      validate: (input) => {
-        if (!input || typeof input !== 'string') return false;
-        const interests = input.split(',').map(i => i.trim()).filter(i => i.length > 0);
-        return interests.length >= 2 && interests.length <= 4;
-      },
+      validate: (input) => input && input.length > 0,
       errorMessage: "Please list 2-4 interests, separated by commas"
     },
 
