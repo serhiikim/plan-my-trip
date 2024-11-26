@@ -42,6 +42,8 @@ export async function generateTravelPlan(planData) {
   Location Formatting Rules:
   - If exact address is known with certainty, provide "Place Name, Address"
   - If unsure about exact address, provide only the place name
+  - Never use generic descriptions like "Various options" or "Inside the park"
+  - For activities in the same venue, specify exact locations (e.g., "Central Park - Belvedere Castle", "Central Park - Boathouse")
   - Use official or commonly known place names
   - For tourist attractions, landmark names are sufficient
   - For restaurants/shops, use establishment name only if address is uncertain

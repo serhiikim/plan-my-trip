@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2VyZ2tpbSIsImEiOiJjbTN4anRudXcxZWo1MmtyMHB3NHMzaTViIn0.Lum-gkQ9yZRMlhA81_svlQ';
 
@@ -10,91 +11,64 @@ const MapView = ({ dailyPlans }) => {
   const map = useRef(null);
   const navigationControl = useRef(null);
   const markersRef = useRef([]);
+  const mapboxgl = useRef(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState('0');
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
 
-  // Helper function to initialize Mapbox map
-  const initializeMap = async () => {
-    try {
-      const mapboxModule = await import('mapbox-gl');
-      const mapboxgl = mapboxModule.default;
-      await import('mapbox-gl/dist/mapbox-gl.css');
-
-      mapboxgl.accessToken = MAPBOX_TOKEN;
-
-      if (!mapContainer.current) return;
-
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [114.1694, 22.3193],
-        zoom: 11,
-        attributionControl: false,
-        renderWorldCopies: false,
-        maxBounds: new mapboxgl.LngLatBounds(
-          [113.835, 22.15],
-          [114.434, 22.57]
-        ),
-      });
-
-      await new Promise((resolve) => map.current.on('load', resolve));
-
-      // Add zoom and compass controls
-      if (!navigationControl.current) {
-        navigationControl.current = new mapboxgl.NavigationControl({
-          showCompass: true,
-          showZoom: true,
-        });
-        map.current.addControl(navigationControl.current, 'top-right');
-      }
-    } catch (err) {
-      console.error('Map initialization error:', err);
-      setError(`Failed to load map: ${err.message}`);
-      setIsLoading(false);
-    }
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
-  // Helper function to add markers to the map
-  const addMarkers = (mapboxgl, dailyPlans) => {
-    if (!map.current) return;
+  // Update markers
+  const updateMarkers = () => {
+    if (!map.current || !mapboxgl.current || !dailyPlans) return;
+
+    const selectedDayPlan = dailyPlans[parseInt(selectedDay)];
+    if (!selectedDayPlan) return;
 
     // Clear previous markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const bounds = new mapboxgl.LngLatBounds();
+    const bounds = new mapboxgl.current.LngLatBounds();
 
-    dailyPlans.forEach((day, dayIndex) => {
-      day.activities.forEach((activity) => {
-        if (activity.locationData?.coordinates) {
-          const [lat, lng] = activity.locationData.coordinates;
-          const coordinates = [lng, lat];
+    selectedDayPlan.activities.forEach((activity, activityIndex) => {
+      if (activity.locationData?.coordinates) {
+        const [lat, lng] = activity.locationData.coordinates;
+        const coordinates = [lng, lat];
 
-          const el = document.createElement('div');
-          el.className =
-            'w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-xl';
-          el.style.cursor = 'pointer';
-          el.innerHTML = `${dayIndex + 1}`;
+        const el = document.createElement('div');
+        el.className = 'w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-xl';
+        el.style.cursor = 'pointer';
+        el.innerHTML = `${activityIndex + 1}`;
 
-          const marker = new mapboxgl.Marker(el)
-            .setLngLat(coordinates)
-            .setPopup(
-              new mapboxgl.Popup({ offset: 25, closeButton: true, className: 'custom-popup' }).setHTML(`
-                <div class="p-3">
-                  <div class="font-bold text-sm mb-1">Day ${dayIndex + 1}</div>
-                  <div class="text-sm">${activity.time}: ${activity.activity}</div>
-                </div>
-              `)
-            )
-            .addTo(map.current);
+        const marker = new mapboxgl.current.Marker(el)
+          .setLngLat(coordinates)
+          .setPopup(
+            new mapboxgl.current.Popup({
+              offset: 25,
+              closeButton: true,
+              className: 'custom-popup'
+            }).setHTML(`
+              <div class="p-3">
+                <div class="font-bold text-sm mb-1">${formatDate(selectedDayPlan.date)} - Stop ${activityIndex + 1}</div>
+                <div class="text-sm">${activity.time}: ${activity.activity}</div>
+              </div>
+            `)
+          )
+          .addTo(map.current);
 
-          markersRef.current.push(marker);
-          bounds.extend(coordinates);
-        }
-      });
+        markersRef.current.push(marker);
+        bounds.extend(coordinates);
+      }
     });
 
-    // Fit map bounds to markers
     if (!bounds.isEmpty()) {
       map.current.fitBounds(bounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
@@ -104,28 +78,49 @@ const MapView = ({ dailyPlans }) => {
     }
   };
 
+  // Initialize map
   useEffect(() => {
-    let mapboxgl;
-
-    const loadMap = async () => {
+    const initializeMap = async () => {
       try {
-        if (!map.current) {
-          await initializeMap();
-        }
-
         const mapboxModule = await import('mapbox-gl');
-        mapboxgl = mapboxModule.default;
+        mapboxgl.current = mapboxModule.default;
+        await import('mapbox-gl/dist/mapbox-gl.css');
 
-        addMarkers(mapboxgl, dailyPlans);
+        mapboxgl.current.accessToken = MAPBOX_TOKEN;
+
+        if (!mapContainer.current) return;
+
+        map.current = new mapboxgl.current.Map({
+          container: mapContainer.current,
+          style: 'mapbox://styles/mapbox/streets-v12',
+          center: [114.1694, 22.3193],
+          zoom: 11,
+          attributionControl: false,
+          renderWorldCopies: false,
+          maxBounds: new mapboxgl.current.LngLatBounds(
+            [113.835, 22.15],
+            [114.434, 22.57]
+          ),
+        });
+
+        await new Promise((resolve) => map.current.on('load', resolve));
+
+        navigationControl.current = new mapboxgl.current.NavigationControl({
+          showCompass: true,
+          showZoom: true,
+        });
+        map.current.addControl(navigationControl.current, 'top-right');
+
         setIsLoading(false);
+        setIsMapInitialized(true);
       } catch (err) {
-        console.error('Error loading the map:', err);
+        console.error('Map initialization error:', err);
         setError(`Failed to load map: ${err.message}`);
         setIsLoading(false);
       }
     };
 
-    loadMap();
+    initializeMap();
 
     return () => {
       if (map.current) {
@@ -134,7 +129,14 @@ const MapView = ({ dailyPlans }) => {
         map.current = null;
       }
     };
-  }, [dailyPlans]);
+  }, []);
+
+  // Update markers when selected day changes or map is initialized
+  useEffect(() => {
+    if (isMapInitialized) {
+      updateMarkers();
+    }
+  }, [selectedDay, isMapInitialized, dailyPlans]);
 
   if (error) {
     return (
@@ -146,18 +148,24 @@ const MapView = ({ dailyPlans }) => {
   }
 
   return (
-    <Card className="w-full overflow-hidden">
+    <Card className="w-full">
+      <Tabs value={selectedDay} onValueChange={setSelectedDay}>
+        <TabsList className="w-full">
+          {dailyPlans.map((day, index) => (
+            <TabsTrigger key={day.date} value={index.toString()}>
+              {formatDate(day.date)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       <div className="relative w-full h-[500px]">
         <div
           ref={mapContainer}
           className="absolute inset-0"
-          style={{
-            width: '100%',
-            height: '100%',
-          }}
+          style={{ width: '100%', height: '100%' }}
         />
+        {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-gray-100">Loading map...</div>}
       </div>
-      {isLoading && <div className="text-center mt-4">Loading map...</div>}
     </Card>
   );
 };
