@@ -365,8 +365,10 @@ export default function PlanPage() {
             </CardContent>
           </Card>
   
-          {/* Map View */}
-          {data && <MapView dailyPlans={data.dailyPlans} />}
+     
+<div className="w-full">
+  {data && <MapView dailyPlans={data.dailyPlans} />}
+</div>
   
           {/* Timeline View */}
           <div className="space-y-4">

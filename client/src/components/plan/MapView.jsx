@@ -1,162 +1,163 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-// Default coordinates for New York City
-const DEFAULT_CENTER = [-74.006, 40.7128];
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2VyZ2tpbSIsImEiOiJjbTN4anRudXcxZWo1MmtyMHB3NHMzaTViIn0.Lum-gkQ9yZRMlhA81_svlQ';
 
 const MapView = ({ dailyPlans }) => {
   const mapContainer = useRef(null);
-  const [loading, setLoading] = useState(true);
+  const map = useRef(null);
+  const navigationControl = useRef(null);
   const markersRef = useRef([]);
-  const mapRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Clear container
-    if (mapContainer.current) {
-      mapContainer.current.innerHTML = '';
-    }
+  // Helper function to initialize Mapbox map
+  const initializeMap = async () => {
+    try {
+      const mapboxModule = await import('mapbox-gl');
+      const mapboxgl = mapboxModule.default;
+      await import('mapbox-gl/dist/mapbox-gl.css');
 
-    // Load and initialize map
-    const initializeMap = async () => {
-      if (window.mapboxgl) {
-        createMap();
-        return;
-      }
+      mapboxgl.accessToken = MAPBOX_TOKEN;
 
-      const script = document.createElement('script');
-      script.src = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js';
-      
-      const link = document.createElement('link');
-      link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
-      link.rel = 'stylesheet';
-      
-      document.head.appendChild(link);
-      document.head.appendChild(script);
-      
-      script.onload = () => {
-        createMap();
-      };
-    };
+      if (!mapContainer.current) return;
 
-    const createMap = () => {
-      window.mapboxgl.accessToken = 'pk.eyJ1Ijoic2VyZ2tpbSIsImEiOiJjbTN4anRjOW0xbTBzMmxzZnRscXh6dmI0In0.XPPo5-1_a4OCkGl7BvOsgg';
-      
-      const map = new window.mapboxgl.Map({
+      map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: DEFAULT_CENTER,
-        zoom: 12
+        center: [114.1694, 22.3193],
+        zoom: 11,
+        attributionControl: false,
+        renderWorldCopies: false,
+        maxBounds: new mapboxgl.LngLatBounds(
+          [113.835, 22.15],
+          [114.434, 22.57]
+        ),
       });
 
-      map.addControl(new window.mapboxgl.NavigationControl(), 'top-right');
+      await new Promise((resolve) => map.current.on('load', resolve));
 
-      map.on('load', () => {
-        setLoading(false);
-        mapRef.current = map;
-        addMarkers();
-      });
-    };
+      // Add zoom and compass controls
+      if (!navigationControl.current) {
+        navigationControl.current = new mapboxgl.NavigationControl({
+          showCompass: true,
+          showZoom: true,
+        });
+        map.current.addControl(navigationControl.current, 'top-right');
+      }
+    } catch (err) {
+      console.error('Map initialization error:', err);
+      setError(`Failed to load map: ${err.message}`);
+      setIsLoading(false);
+    }
+  };
 
-    const addMarkers = () => {
-      if (!mapRef.current || !window.mapboxgl) return;
+  // Helper function to add markers to the map
+  const addMarkers = (mapboxgl, dailyPlans) => {
+    if (!map.current) return;
 
-      // Clear existing markers
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
+    // Clear previous markers
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
 
-      // Create bounds object
-      const bounds = new window.mapboxgl.LngLatBounds();
-      let hasValidLocations = false;
+    const bounds = new mapboxgl.LngLatBounds();
 
-      // Collect all locations from all days
-      dailyPlans.forEach(day => {
-        day.activities.forEach(activity => {
-          if (!activity.locationData?.coordinates?.length === 2) return;
-          
+    dailyPlans.forEach((day, dayIndex) => {
+      day.activities.forEach((activity) => {
+        if (activity.locationData?.coordinates) {
           const [lat, lng] = activity.locationData.coordinates;
-          if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+          const coordinates = [lng, lat];
 
-          try {
-            const lngLat = new window.mapboxgl.LngLat(lng, lat);
-            
-            // Create marker element
-            const markerEl = document.createElement('div');
-            markerEl.className = 'flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium shadow-lg';
-            markerEl.textContent = '📍';
+          const el = document.createElement('div');
+          el.className =
+            'w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-xl';
+          el.style.cursor = 'pointer';
+          el.innerHTML = `${dayIndex + 1}`;
 
-            // Add marker to map
-            const marker = new window.mapboxgl.Marker(markerEl)
-              .setLngLat(lngLat)
-              .setPopup(
-                new window.mapboxgl.Popup({
-                  offset: 25,
-                  closeButton: false,
-                  maxWidth: '300px'
-                })
-                .setHTML(`
-                  <div class="p-3">
-                    <div class="font-medium">${activity.activity}</div>
-                    <div class="text-sm text-muted-foreground mt-1">${activity.time}</div>
-                  </div>
-                `)
-              )
-              .addTo(mapRef.current);
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat(coordinates)
+            .setPopup(
+              new mapboxgl.Popup({ offset: 25, closeButton: true, className: 'custom-popup' }).setHTML(`
+                <div class="p-3">
+                  <div class="font-bold text-sm mb-1">Day ${dayIndex + 1}</div>
+                  <div class="text-sm">${activity.time}: ${activity.activity}</div>
+                </div>
+              `)
+            )
+            .addTo(map.current);
 
-            markersRef.current.push(marker);
-            bounds.extend(lngLat);
-            hasValidLocations = true;
-          } catch (error) {
-            console.error('Error adding marker:', error);
-          }
-        });
+          markersRef.current.push(marker);
+          bounds.extend(coordinates);
+        }
       });
+    });
 
-      // Fit map to bounds if we have valid locations
-      if (hasValidLocations) {
-        mapRef.current.fitBounds(bounds, {
-          padding: { top: 50, bottom: 50, left: 50, right: 50 },
-          duration: 1000,
-          maxZoom: 15
-        });
+    // Fit map bounds to markers
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, {
+        padding: { top: 50, bottom: 50, left: 50, right: 50 },
+        duration: 1000,
+        maxZoom: 15,
+      });
+    }
+  };
+
+  useEffect(() => {
+    let mapboxgl;
+
+    const loadMap = async () => {
+      try {
+        if (!map.current) {
+          await initializeMap();
+        }
+
+        const mapboxModule = await import('mapbox-gl');
+        mapboxgl = mapboxModule.default;
+
+        addMarkers(mapboxgl, dailyPlans);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error loading the map:', err);
+        setError(`Failed to load map: ${err.message}`);
+        setIsLoading(false);
       }
     };
 
-    initializeMap();
+    loadMap();
 
-    // Cleanup
     return () => {
-      if (mapRef.current) {
-        markersRef.current.forEach(marker => marker.remove());
-        markersRef.current = [];
-        mapRef.current.remove();
-        mapRef.current = null;
+      if (map.current) {
+        markersRef.current.forEach((marker) => marker.remove());
+        map.current.remove();
+        map.current = null;
       }
     };
   }, [dailyPlans]);
 
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Trip Map</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="relative">
-          <div 
-            ref={mapContainer} 
-            className="h-[400px] w-full bg-muted rounded-lg overflow-hidden"
-          />
-          
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Loading map...</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
+    <Card className="w-full overflow-hidden">
+      <div className="relative w-full h-[500px]">
+        <div
+          ref={mapContainer}
+          className="absolute inset-0"
+          style={{
+            width: '100%',
+            height: '100%',
+          }}
+        />
+      </div>
+      {isLoading && <div className="text-center mt-4">Loading map...</div>}
     </Card>
   );
 };
