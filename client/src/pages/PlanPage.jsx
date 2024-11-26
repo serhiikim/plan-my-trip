@@ -36,6 +36,7 @@ import {
   Printer, 
   RefreshCw,
   FileText,
+  Trash2,
 } from 'lucide-react';
 
 export default function PlanPage() {
@@ -167,28 +168,23 @@ export default function PlanPage() {
     }, 5000);
   };
   
-    const handleGenerate = async () => {
-      try {
-        setIsGenerating(true);
-        setError(null);
-        
-        toast({
-          title: "Generating plan",
-          description: "Please wait while we create your travel plan..."
-        });
-  
-        await planApi.generateItinerary(planId);
-        startPolling();
-      } catch (error) {
-        setError(error.message);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error.message
-        });
-        setIsGenerating(false);
-      }
-    };
+  const handleDelete = async () => {
+    try {
+      await planApi.deletePlan(planId);
+      toast({
+        title: "Success",
+        description: "Travel plan deleted successfully"
+      });
+      navigate('/plan'); // Redirect to plans list
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete plan"
+      });
+    }
+  };
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
     const handleRegenerate = async () => {
       setIsRegenerateDialogOpen(false);
@@ -318,46 +314,50 @@ export default function PlanPage() {
   
     return (
       <Layout>
-        <div className="container max-w-4xl space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle>Your Travel Itinerary</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {data?.destination}
-                </p>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleShare}>
-                    <Share2 className="mr-2 h-4 w-4" />
-                    Share
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => setIsRegenerateDialogOpen(true)}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Regenerate
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
+      <div className="container max-w-4xl space-y-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Your Travel Itinerary</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {data?.destination}
+              </p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleShare}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePrint}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsRegenerateDialogOpen(true)}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Regenerate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Plan
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
                 Total Budget: {data?.totalCost}
@@ -391,6 +391,31 @@ export default function PlanPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Add Delete Dialog */}
+           <AlertDialog 
+          open={isDeleteDialogOpen} 
+          onOpenChange={setIsDeleteDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Travel Plan</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this travel plan? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
   
           <AlertDialog 
             open={isRegenerateDialogOpen} 

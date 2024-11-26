@@ -117,5 +117,24 @@ export const planApi = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to regenerate itinerary');
     }
+  },
+
+  deletePlan: async (planId) => {
+    try {
+      const { data } = await api.delete(`/plans/${planId}`);
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete plan');
+    }
+  },
+
+  // Delete plan and itinerary from itineraries list
+  deleteItinerary: async (itineraryId) => {
+    try {
+      const { data } = await api.delete(`/plans/itineraries/${itineraryId}`);
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete itinerary');
+    }
   }
 };
