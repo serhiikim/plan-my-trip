@@ -42,7 +42,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3003;
 
-// Initialize the database connection before starting the server
+// Initialize the database connection and start server
 async function startServer() {
   try {
     await db.connect();
@@ -55,6 +55,23 @@ async function startServer() {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+}
+
+// Cleanup on server shutdown
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);
+
+async function cleanup() {
+  console.log('Cleaning up...');
+
+  // Close database connection
+  try {
+    await db.client?.close();
+  } catch (error) {
+    console.error('Error closing database connection:', error);
+  }
+
+  process.exit(0);
 }
 
 startServer();
