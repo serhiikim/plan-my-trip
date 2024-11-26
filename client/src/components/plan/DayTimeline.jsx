@@ -1,6 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Clock, Car, Calendar, DollarSign } from 'lucide-react';
+import { MapPin, Clock, Car, Calendar, Banknote } from 'lucide-react';
 import { ActivityDialog } from './ActivityDialog';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,7 @@ export default function DayTimeline({ day, index }) {
               </div>
             </AccordionTrigger>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Banknote className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">
                 Daily Budget: {day.dailyCost}
               </span>
@@ -83,7 +83,7 @@ export default function DayTimeline({ day, index }) {
 
                         {activity.cost && (
                           <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
+                            <Banknote className="h-4 w-4" />
                             <span>{activity.cost}</span>
                           </div>
                         )}

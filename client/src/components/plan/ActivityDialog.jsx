@@ -7,7 +7,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MapPin, Clock, Car, DollarSign, ExternalLink } from "lucide-react";
+import { MapPin, Clock, Car, DollarSign, ExternalLink, Banknote } from "lucide-react";
 
 export function ActivityDialog({ activity, index }) {
   const { locationData } = activity;
@@ -62,7 +62,7 @@ export function ActivityDialog({ activity, index }) {
           
           {activity.cost && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <DollarSign className="h-4 w-4 flex-shrink-0" />
+              <Banknote className="h-4 w-4 flex-shrink-0" />
               <span>{activity.cost}</span>
             </div>
           )}
