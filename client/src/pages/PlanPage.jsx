@@ -4,6 +4,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
 import { planApi } from '../services/api';
 import DayTimeline from '../components/plan/DayTimeline';
+import MapView from '../components/plan/MapView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -33,7 +35,6 @@ import {
   Share2, 
   Printer, 
   RefreshCw,
-  FileIcon,
   FileText,
 } from 'lucide-react';
 
@@ -323,7 +324,7 @@ export default function PlanPage() {
               <div>
                 <CardTitle>Your Travel Itinerary</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {data.destination}
+                  {data?.destination}
                 </p>
               </div>
               <DropdownMenu>
@@ -359,22 +360,26 @@ export default function PlanPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Total Budget: {data.totalCost}
+                Total Budget: {data?.totalCost}
               </p>
             </CardContent>
           </Card>
   
-          <div className="space-y-4">
-  {data.dailyPlans.map((day, index) => (
-    <DayTimeline 
-      key={day.date} 
-      day={day} 
-      index={index}
-    />
-  ))}
-</div>
+          {/* Map View */}
+          {data && <MapView dailyPlans={data.dailyPlans} />}
   
-          {data.generalNotes && (
+          {/* Timeline View */}
+          <div className="space-y-4">
+            {data?.dailyPlans.map((day, index) => (
+              <DayTimeline 
+                key={day.date} 
+                day={day} 
+                index={index}
+              />
+            ))}
+          </div>
+  
+          {data?.generalNotes && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">General Notes</CardTitle>
@@ -385,44 +390,41 @@ export default function PlanPage() {
             </Card>
           )}
   
-  <AlertDialog 
-        open={isRegenerateDialogOpen} 
-        onOpenChange={(open) => {
-          setIsRegenerateDialogOpen(open);
-          if (!open) setRegenerateInstructions(''); // Reset when dialog closes
-        }}
-      >
-        <AlertDialogContent className="sm:max-w-[425px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Regenerate Itinerary</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will create a completely new travel plan. Your current itinerary will be replaced.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="instructions">Special requests (optional)</Label>
-              <Textarea
-                id="instructions"
-                placeholder="Add any specific preferences or requests for your new itinerary. For example: 'Include more outdoor activities' or 'Focus on family-friendly locations'"
-                value={regenerateInstructions}
-                onChange={(e) => setRegenerateInstructions(e.target.value)}
-                className="h-24 resize-none"
-              />
-            </div>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setRegenerateInstructions('')}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleRegenerate}>
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog 
+            open={isRegenerateDialogOpen} 
+            onOpenChange={setIsRegenerateDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Regenerate Itinerary</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will create a completely new travel plan. Your current itinerary will be replaced.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+  
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="instructions">Special requests (optional)</Label>
+                  <Textarea
+                    id="instructions"
+                    placeholder="Add any specific preferences or requests for your new itinerary..."
+                    value={regenerateInstructions}
+                    onChange={(e) => setRegenerateInstructions(e.target.value)}
+                    className="h-24 resize-none"
+                  />
+                </div>
+              </div>
+  
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRegenerateInstructions('')}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={handleRegenerate}>
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </Layout>
     );

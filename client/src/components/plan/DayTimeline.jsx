@@ -1,8 +1,9 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Clock, Car, Calendar } from 'lucide-react';
+import { MapPin, Clock, Car, Calendar, DollarSign } from 'lucide-react';
 import { ActivityDialog } from './ActivityDialog';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 export default function DayTimeline({ day, index }) {
   const formatDate = (dateString) => {
@@ -28,35 +29,65 @@ export default function DayTimeline({ day, index }) {
                 </div>
               </div>
             </AccordionTrigger>
-            <span className="text-muted-foreground">Daily Budget: {day.dailyCost}</span>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                Daily Budget: {day.dailyCost}
+              </span>
+            </div>
           </CardHeader>
           <AccordionContent>
             <CardContent>
-              <div className="space-y-4">
-                {day.activities.map((activity, index) => (
-                  <div key={index} className="relative pl-4 border-l-2 border-primary">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="font-medium flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          {activity.time}
-                          <span className="text-sm text-muted-foreground">
-                            ({activity.duration})
-                          </span>
-                        </div>
-                        <ActivityDialog activity={activity} />
-                        <div className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {activity.location}
-                        </div>
+              <div className="space-y-8">
+                {day.activities.map((activity, activityIndex) => (
+                  <div 
+                    key={`${activity.time}-${activity.activity}`} 
+                    className="relative pl-8 border-l-2 border-primary"
+                  >
+                    {/* Timeline dot */}
+                    <div className="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-xs font-medium text-primary-foreground">
+                        {activityIndex + 1}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Time and Duration */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">{activity.time}</span>
+                        <span className="text-muted-foreground">({activity.duration})</span>
+                      </div>
+
+                      {/* Activity Dialog */}
+                      <ActivityDialog 
+                        activity={activity}
+                        index={activityIndex}
+                      />
+
+                      {/* Additional Info */}
+                      <div className="space-y-2">
+                        {activity.location && (
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{activity.location}</span>
+                          </div>
+                        )}
+                        
                         {activity.transportation && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
                             <Car className="h-4 w-4" />
-                            {activity.transportation}
+                            <span>{activity.transportation}</span>
+                          </div>
+                        )}
+
+                        {activity.cost && (
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            <span>{activity.cost}</span>
                           </div>
                         )}
                       </div>
-                      <div className="text-muted-foreground">{activity.cost}</div>
                     </div>
                   </div>
                 ))}
