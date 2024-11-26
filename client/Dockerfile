@@ -11,10 +11,12 @@ COPY . .
 # Define build-time arguments
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_API_URL
+ARG VITE_MAPBOX_TOKEN
 
 # Set them as environment variables for Vite
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
 
 # Build the app
 RUN npm run build
