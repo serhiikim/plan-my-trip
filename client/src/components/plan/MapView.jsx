@@ -23,6 +23,25 @@ const MapView = ({ dailyPlans }) => {
         day: 'numeric'
       });
     };
+
+    // Helper to get initial map center from activities
+    const getInitialMapCenter = () => {
+      if (!dailyPlans || dailyPlans.length === 0) {
+        return { lng: 0, lat: 0, zoom: 2 }; // Default to world view
+      }
+
+      // Try to find first activity with coordinates
+      for (const day of dailyPlans) {
+        for (const activity of day.activities) {
+          if (activity.locationData?.coordinates) {
+            const [lat, lng] = activity.locationData.coordinates;
+            return { lng, lat, zoom: 11 };
+          }
+        }
+      }
+
+      return { lng: 0, lat: 0, zoom: 2 }; // Fallback to world view
+    };
   
     const updateMarkers = () => {
       if (!map.current || !mapboxgl.current || !dailyPlans) return;
@@ -30,10 +49,12 @@ const MapView = ({ dailyPlans }) => {
       const selectedDayPlan = dailyPlans[parseInt(selectedDay)];
       if (!selectedDayPlan) return;
   
+      // Clear existing markers
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
   
       const bounds = new mapboxgl.current.LngLatBounds();
+      let hasValidCoordinates = false;
   
       selectedDayPlan.activities.forEach((activity, activityIndex) => {
         if (activity.locationData?.coordinates) {
@@ -41,7 +62,7 @@ const MapView = ({ dailyPlans }) => {
           const coordinates = [lng, lat];
   
           const el = document.createElement('div');
-          el.className = 'w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-xl';
+          el.className = 'w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-xl';
           el.style.cursor = 'pointer';
           el.innerHTML = `${activityIndex + 1}`;
   
@@ -56,6 +77,7 @@ const MapView = ({ dailyPlans }) => {
                 <div class="p-3">
                   <div class="font-bold text-sm mb-1">${formatDate(selectedDayPlan.date)} - Stop ${activityIndex + 1}</div>
                   <div class="text-sm">${activity.time}: ${activity.activity}</div>
+                  ${activity.locationData.address ? `<div class="text-xs mt-1 text-muted-foreground">${activity.locationData.address}</div>` : ''}
                 </div>
               `)
             )
@@ -63,10 +85,11 @@ const MapView = ({ dailyPlans }) => {
   
           markersRef.current.push(marker);
           bounds.extend(coordinates);
+          hasValidCoordinates = true;
         }
       });
   
-      if (!bounds.isEmpty()) {
+      if (hasValidCoordinates) {
         map.current.fitBounds(bounds, {
           padding: { top: 50, bottom: 50, left: 50, right: 50 },
           duration: 1000,
@@ -90,29 +113,32 @@ const MapView = ({ dailyPlans }) => {
           if (map.current) {
             map.current.remove();
           }
+
+          const initialCenter = getInitialMapCenter();
   
           map.current = new mapboxgl.current.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/mapbox/streets-v12',
-            center: [114.1694, 22.3193],
-            zoom: 11,
+            center: [initialCenter.lng, initialCenter.lat],
+            zoom: initialCenter.zoom,
             attributionControl: false,
-            renderWorldCopies: false,
-            maxBounds: new mapboxgl.current.LngLatBounds(
-              [113.835, 22.15],
-              [114.434, 22.57]
-            ),
+            renderWorldCopies: true, // Enable world copies for global navigation
           });
   
           await new Promise((resolve) => map.current.on('load', resolve));
   
-          // Add navigation control - removed separate ref for navigation control
+          // Add navigation and scale controls
           map.current.addControl(
             new mapboxgl.current.NavigationControl({
               showCompass: true,
               showZoom: true,
             }),
             'top-right'
+          );
+
+          map.current.addControl(
+            new mapboxgl.current.ScaleControl(),
+            'bottom-right'
           );
   
           setIsLoading(false);
@@ -153,9 +179,13 @@ const MapView = ({ dailyPlans }) => {
     return (
       <Card className="w-full">
         <Tabs value={selectedDay} onValueChange={setSelectedDay}>
-          <TabsList className="w-full">
+          <TabsList className="w-full h-auto flex-wrap">
             {dailyPlans.map((day, index) => (
-              <TabsTrigger key={day.date} value={index.toString()}>
+              <TabsTrigger 
+                key={day.date} 
+                value={index.toString()}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
                 {formatDate(day.date)}
               </TabsTrigger>
             ))}
@@ -167,7 +197,11 @@ const MapView = ({ dailyPlans }) => {
             className="absolute inset-0"
             style={{ width: '100%', height: '100%' }}
           />
-          {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-gray-100">Loading map...</div>}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+              Loading map...
+            </div>
+          )}
         </div>
       </Card>
     );
