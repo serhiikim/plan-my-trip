@@ -3,9 +3,27 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Flag to control which provider to use
+const USE_PERPLEXITY = true;
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+
+const perplexity = new OpenAI({
+  apiKey: process.env.PERPLEXITY_API_KEY,
+  baseURL: 'https://api.perplexity.ai'
+});
+
+// Helper function to clean Perplexity response of citations
+function cleanPerplexityResponse(text) {
+  // Remove citations in format [1], [2], etc.
+  return text.replace(/\[\d+\]/g, '')
+    // Remove code block markers if present
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+}
 
 export async function generateTravelPlan(planData) {
   const systemPrompt = `You are an expert travel planner. Your task is to generate a detailed day-by-day itinerary based on user preferences.
@@ -35,6 +53,7 @@ export async function generateTravelPlan(planData) {
   - Logical geographical flow of activities
   - Group nearby attractions together
   - Local customs and practices
+  - Food and Drink places with good reviews and high rating
   - Weather-appropriate activities
   - Budget constraints for activities and meals
   ${planData.regenerationInstructions ? '- Special instructions provided for regeneration' : ''}
@@ -87,22 +106,30 @@ export async function generateTravelPlan(planData) {
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL,
+    const client = USE_PERPLEXITY ? perplexity : openai;
+    const completion = await client.chat.completions.create({
+      model: USE_PERPLEXITY ? 'llama-3.1-sonar-large-128k-online' : process.env.OPENAI_MODEL,
       messages,
-      temperature: planData.regenerationInstructions ? 0.8 : 0.7, // Slightly higher temperature for regeneration to ensure variation
-      response_format: { type: "json_object" }
+      temperature: planData.regenerationInstructions ? 0.8 : 0.7,
+      ...(USE_PERPLEXITY ? {} : { response_format: { type: "json_object" } })
     });
+
+    let content = completion.choices[0].message.content;
+
+    // Handle Perplexity specific response formatting
+    if (USE_PERPLEXITY) {
+      content = cleanPerplexityResponse(content);
+    }
 
     // Parse the response to ensure it's valid JSON
     try {
-      return JSON.parse(completion.choices[0].message.content);
+      return JSON.parse(content);
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', parseError);
+      console.error('Failed to parse API response as JSON:', parseError);
       throw new Error('Generated plan was not in valid JSON format');
     }
   } catch (error) {
-    console.error('OpenAI API Error:', error);
+    console.error('API Error:', error);
     throw error;
   }
 }
