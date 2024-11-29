@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
 import { planApi } from '../services/api';
+import EditableDayTimeline from '../components/plan/EditableDayTimeline';
 import DayTimeline from '../components/plan/DayTimeline';
 import MapView from '../components/plan/MapView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
