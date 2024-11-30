@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
 import { planApi } from '../services/api';
-import EditableDayTimeline from '../components/plan/EditableDayTimeline';
 import DayTimeline from '../components/plan/DayTimeline';
 import MapView from '../components/plan/MapView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +37,8 @@ import {
   RefreshCw,
   FileText,
   Trash2,
+  Edit2,
+  Save,
 } from 'lucide-react';
 import { PlanLoader } from '@/components/common/PlanLoader';
 
@@ -50,6 +51,8 @@ export default function PlanPage() {
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [regenerateInstructions, setRegenerateInstructions] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [editingDayIndex, setEditingDayIndex] = useState(null);
+  const [isSavingDay, setIsSavingDay] = useState(false);
   const { toast } = useToast();
   const initialLoadRef = useRef(false);
   const pollingRef = useRef(null);
@@ -88,6 +91,35 @@ export default function PlanPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDay = async (updatedDay, index) => {
+    setIsSavingDay(true);
+    try {
+      // Call API to save the updated day
+      await planApi.updateDayActivities(planId, index, updatedDay.activities);
+      
+      // Update local state
+      const newData = { ...data };
+      newData.dailyPlans[index] = updatedDay;
+      setData(newData);
+      
+      // Exit edit mode
+      setEditingDayIndex(null);
+      
+      toast({
+        title: "Success",
+        description: "Day plan updated successfully"
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update day plan"
+      });
+    } finally {
+      setIsSavingDay(false);
     }
   };
 
@@ -232,6 +264,30 @@ export default function PlanPage() {
     const handlePrint = () => {
       window.print();
     };
+
+    const renderTimeline = () => (
+      <div className="space-y-4">
+        {data?.dailyPlans.map((day, index) => (
+          <div key={day.date} className="relative">
+            {editingDayIndex === index ? (
+              <EditableDayTimeline 
+                day={{ ...day, planId: planId }} // Add planId here
+                index={index}
+                onSave={(updatedDay) => handleSaveDay(updatedDay, index)}
+              />
+            ) : (
+              <div className="group">
+                <DayTimeline 
+                  day={{ ...day, planId: planId }} // Add planId here
+                  index={index}
+                  onSave={(updatedDay) => handleSaveDay(updatedDay, index)} // Add onSave here
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   
   // Initial load effect
   useEffect(() => {
@@ -362,17 +418,8 @@ export default function PlanPage() {
 <div className="w-full">
   {data && <MapView dailyPlans={data.dailyPlans} />}
 </div>
-  
-          {/* Timeline View */}
-          <div className="space-y-4">
-            {data?.dailyPlans.map((day, index) => (
-              <DayTimeline 
-                key={day.date} 
-                day={day} 
-                index={index}
-              />
-            ))}
-          </div>
+{renderTimeline()}
+
   
           {data?.generalNotes && (
             <Card>
@@ -384,6 +431,8 @@ export default function PlanPage() {
               </CardContent>
             </Card>
           )}
+
+
 
           {/* Add Delete Dialog */}
            <AlertDialog 

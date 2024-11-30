@@ -1,11 +1,21 @@
+import React, { useState } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Clock, Car, Calendar, Banknote } from 'lucide-react';
-import { ActivityDialog } from './ActivityDialog';
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { planApi } from '../../services/api';
+import { MapPin, Clock, Car, Calendar, Banknote, ExternalLink, Plus, X, Save, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-export default function DayTimeline({ day, index }) {
+export default function DayTimeline({ day, index, onSave }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [activities, setActivities] = useState(day.activities);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isAddingActivity, setIsAddingActivity] = useState(false);
+
   const formatDate = (dateString) => {
     try {
       return format(new Date(dateString), 'EEEE, MMMM d, yyyy');
@@ -14,6 +24,136 @@ export default function DayTimeline({ day, index }) {
       return dateString;
     }
   };
+
+  const removeActivity = (index) => {
+    const newActivities = activities.filter((_, i) => i !== index);
+    setActivities(newActivities);
+  };
+
+// In DayTimeline.jsx
+const handleSearch = async (query) => {
+  if (query.length < 3) {
+    setSearchResults([]);
+    return;
+  }
+
+  try {
+    // Get administrative area from the first activity's location data
+    const countryCode = activities[0]?.locationData?.addressComponents?.find(
+      component => component.types.includes('country')
+    )?.short_name;
+
+    if (!countryCode) {
+      console.error('No administrative area found in location data');
+    }
+
+    const results = await planApi.searchPlaces(query, countryCode);
+    setSearchResults(results);
+  } catch (error) {
+    console.error('Search failed:', error);
+  }
+};
+  
+  const handleSelectPlace = async (place) => {
+    try {
+      const placeDetails = await planApi.getPlaceDetails(place.place_id);
+      
+      const newActivity = {
+        activity: place.name,
+        time: "12:00", // Default time, will be adjusted by backend
+        duration: "2 hours", // Default duration, will be adjusted by backend
+        location: place.formatted_address,
+        locationData: placeDetails
+      };
+  
+      setActivities([...activities, newActivity]);
+      setIsAddingActivity(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (error) {
+      console.error('Failed to add place:', error);
+      // Add error handling UI if needed
+    }
+  };
+  
+// In DayTimeline.jsx
+const handleSave = async () => {
+  try {
+    console.log('Saving with data:', {
+      planId: day.planId, // Check this value
+      index,
+      activitiesCount: activities.length
+    });
+
+    if (!day.planId) {
+      console.error('Missing planId in day object:', day);
+      throw new Error('Plan ID is required');
+    }
+
+    const updatedDay = await planApi.updateDayActivities(day.planId, index, activities);
+    onSave?.(updatedDay);
+    setIsEditing(false);
+  } catch (error) {
+    console.error('Failed to save changes:', error);
+    // Add error handling UI if needed
+  }
+};
+
+  const ActivityContent = ({ activity }) => (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Clock className="h-4 w-4" />
+        <span className="font-medium">{activity.time}</span>
+        <span>({activity.duration})</span>
+      </div>
+
+      <div className="space-y-1">
+        <h4 className="text-base font-medium">{activity.activity}</h4>
+      </div>
+
+      <div className="space-y-2">
+        {activity.locationData && (
+          <div className="space-y-1">
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span>{activity.locationData.placeName}</span>
+            </div>
+            {activity.locationData.mapUrl && (
+              <a
+                href={activity.locationData.mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View on Google Maps
+              </a>
+            )}
+          </div>
+        )}
+        
+        {activity.transportation && (
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Car className="h-4 w-4" />
+            <span>{activity.transportation}</span>
+          </div>
+        )}
+
+        {activity.cost && (
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Banknote className="h-4 w-4" />
+            <span>{activity.cost}</span>
+          </div>
+        )}
+      </div>
+
+      {activity.notes && (
+        <div className="bg-muted p-3 rounded-md text-sm">
+          {activity.notes}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Accordion type="single" collapsible className="w-full">
@@ -29,69 +169,116 @@ export default function DayTimeline({ day, index }) {
                 </div>
               </div>
             </AccordionTrigger>
-            <div className="flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                Daily Budget: {day.dailyCost}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Banknote className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Daily Budget: {day.dailyCost}
+                </span>
+              </div>
+              <Button
+                variant={isEditing ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  if (isEditing) {
+                    handleSave();
+                  } else {
+                    setIsEditing(true);
+                  }
+                }}
+              >
+                {isEditing ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit Day
+                  </>
+                )}
+              </Button>
             </div>
           </CardHeader>
           <AccordionContent>
             <CardContent>
               <div className="space-y-8">
-                {day.activities.map((activity, activityIndex) => (
+                {activities.map((activity, idx) => (
                   <div 
-                    key={`${activity.time}-${activity.activity}`} 
-                    className="relative pl-8 border-l-2 border-primary"
+                    key={`activity-${day.date}-${idx}`}
+                    className="relative pl-8 border-l-2 border-primary group"
                   >
-                    {/* Timeline dot */}
                     <div className="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                       <span className="text-xs font-medium text-primary-foreground">
-                        {activityIndex + 1}
+                        {idx + 1}
                       </span>
                     </div>
-
-                    <div className="space-y-3">
-                      {/* Time and Duration */}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span className="font-medium">{activity.time}</span>
-                        <span className="text-muted-foreground">({activity.duration})</span>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <ActivityContent activity={activity} />
                       </div>
-
-                      {/* Activity Dialog */}
-                      <ActivityDialog 
-                        activity={activity}
-                        index={activityIndex}
-                      />
-
-                      {/* Additional Info */}
-                      <div className="space-y-2">
-                        {activity.location && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            <span>{activity.location}</span>
-                          </div>
-                        )}
-                        
-                        {activity.transportation && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Car className="h-4 w-4" />
-                            <span>{activity.transportation}</span>
-                          </div>
-                        )}
-
-                        {activity.cost && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Banknote className="h-4 w-4" />
-                            <span>{activity.cost}</span>
-                          </div>
-                        )}
-                      </div>
+                      {isEditing && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeActivity(idx)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
+
+              {isEditing && (
+                <Dialog open={isAddingActivity} onOpenChange={setIsAddingActivity}>
+                  <Button 
+                    variant="outline" 
+                    className="mt-8 w-full"
+                    onClick={() => setIsAddingActivity(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Activity
+                  </Button>
+                  
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Activity</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <Input
+                        placeholder="Search for a place..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          handleSearch(e.target.value);
+                        }}
+                      />
+                      {searchResults.length > 0 && (
+                        <div className="max-h-[300px] overflow-y-auto space-y-2">
+                          {searchResults.map((place) => (
+                            <Button
+                              key={place.place_id}
+                              variant="ghost"
+                              className="w-full justify-start text-left"
+                              onClick={() => handleSelectPlace(place)}
+                            >
+                              <MapPin className="h-4 w-4 mr-2" />
+                              {place.name}
+                              <span className="text-sm text-muted-foreground ml-2">
+                                {place.formatted_address}
+                              </span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardContent>
           </AccordionContent>
         </Card>

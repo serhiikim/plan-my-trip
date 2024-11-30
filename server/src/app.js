@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import plansRoutes from './routes/plan.js';
 import { authMiddleware } from './middleware/auth.js';
+import placesRoutes from './routes/places.js';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ const apiRouter = express.Router();
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/chat', authMiddleware, chatRoutes);
 apiRouter.use('/plans', authMiddleware, plansRoutes);
+apiRouter.use('/places', authMiddleware, placesRoutes);
 
 // Mount all routes under /api
 app.use('/api', apiRouter);

@@ -107,6 +107,95 @@ export async function generateTravelPlan(planData) {
   }
 }
 
+export async function reorganizeDaySchedule({ activities, preferences, cityContext, date }) {
+  const systemPrompt = `You are an expert travel planner. Your task is to reorganize a day's activities based on newly added or removed locations.
+  You must respond in valid JSON format containing an array of activities with the following structure:
+  [{
+    "time": "HH:MM",
+    "duration": "X hours",
+    "activity": "Description",
+    "location": "Place name (with address if known with certainty)",
+    "cost": "Estimated cost for the entire group",
+    "transportation": "How to get there",
+    "notes": "Additional information"
+  }]
+
+  Consider:
+  - Opening hours of attractions
+  - Travel times between locations
+  - Logical geographical flow of activities
+  - Local customs and practices
+  - Weather-appropriate activities
+  - Budget constraints
+  
+  Location Formatting Rules:
+  - Never modify the provided location data
+  - Use official or commonly known place names
+  - For tourist attractions, landmark names are sufficient
+  
+  Important Budget Rules:
+  - ALL costs should be for the entire group, NOT per person
+  - Do not split or show per-person costs
+  - Include group tickets/packages where available
+  
+  Transportation Rules:
+  - Provide specific transport modes and routes
+  - Include walking times for nearby locations
+  - Consider user's preferred transportation methods
+  
+  Timing Rules:
+  - Use 24-hour format for time (HH:MM)
+  - Account for realistic travel times between locations
+  - Consider typical visiting durations
+  - Maintain appropriate meal times
+  - Account for venue opening hours
+  
+  Notes Guidelines:
+  - For new locations, provide specific local insights
+  - Include relevant cultural or historical context
+  - Add practical tips (best photo spots, busy times, etc.)
+  - Mention any special considerations based on group type`;
+
+  const userMessage = JSON.stringify({
+    date,
+    cityContext,
+    preferences,
+    activities
+  });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+
+    // Parse and validate the response
+    try {
+      // Access the activities array from the response
+      const result = JSON.parse(completion.choices[0].message.content);
+      const reorganizedActivities = result.activities || result; // handle both formats
+      
+      // Preserve original locationData and ensure it's an array
+      return Array.isArray(reorganizedActivities) ? 
+        reorganizedActivities.map((newActivity, index) => ({
+          ...newActivity,
+          locationData: activities[index]?.locationData || newActivity.locationData
+        })) : [];
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response as JSON:', parseError);
+      throw new Error('Generated schedule was not in valid JSON format');
+    }
+  } catch (error) {
+    console.error('OpenAI API Error:', error);
+    throw error;
+  }
+}
+
 // Helper function to ensure dates are in correct format
 function formatDate(dateString) {
   try {
