@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Loader2 } from 'lucide-react';
 import { planApi } from '../../services/api';
 import { MapPin, Clock, Car, Calendar, Banknote, ExternalLink, Plus, X, Save, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { useToast } from "@/hooks/use-toast";
 
 export default function DayTimeline({ day, index, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -15,6 +16,36 @@ export default function DayTimeline({ day, index, onSave }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      const invalidActivities = activities.filter(activity => !activity.locationData);
+      if (invalidActivities.length > 0) {
+        throw new Error('Some activities are missing required location data');
+      }
+
+      // Pass activities to parent
+      await onSave(activities, index);
+      setIsEditing(false);
+      
+    } catch (error) {
+      console.error('Failed to save changes:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to save changes"
+      });
+      // Reset activities to original state on error
+      setActivities(day.activities);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     try {
@@ -25,41 +56,49 @@ export default function DayTimeline({ day, index, onSave }) {
     }
   };
 
-  const removeActivity = (index) => {
-    const newActivities = activities.filter((_, i) => i !== index);
-    setActivities(newActivities);
-  };
+  const ActivitySkeleton = () => (
+    <div className="relative pl-8 border-l-2 border-primary animate-pulse">
+      <div className="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-primary" />
+      <div className="space-y-3">
+        <div className="h-4 bg-muted rounded w-24" />
+        <div className="h-6 bg-muted rounded w-3/4" />
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+        </div>
+      </div>
+    </div>
+  );
 
-// In DayTimeline.jsx
-const handleSearch = async (query) => {
-  if (query.length < 3) {
-    setSearchResults([]);
-    return;
-  }
-
-  try {
-    // Get administrative area from the first activity's location data
-    const countryCode = activities[0]?.locationData?.addressComponents?.find(
-      component => component.types.includes('country')
-    )?.short_name;
-
-    if (!countryCode) {
-      console.error('No administrative area found in location data');
+  const handleSearch = async (query) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
     }
 
-    const results = await planApi.searchPlaces(query, countryCode);
-    setSearchResults(results);
-  } catch (error) {
-    console.error('Search failed:', error);
-  }
-};
-  
+    try {
+      const countryCode = activities[0]?.locationData?.addressComponents?.find(
+        component => component.types.includes('country')
+      )?.short_name;
+
+      const results = await planApi.searchPlaces(query, countryCode);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search failed:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to search places"
+      });
+    }
+  };
+
   const handleSelectPlace = async (place) => {
     try {
       const placeDetails = await planApi.getPlaceDetails(place.place_id);
       
       const newActivity = {
-        activity: place.name, // Default duration, will be adjusted by backend
+        activity: place.name,
         location: placeDetails.placeName,
         locationData: placeDetails
       };
@@ -70,29 +109,20 @@ const handleSearch = async (query) => {
       setSearchResults([]);
     } catch (error) {
       console.error('Failed to add place:', error);
-      // Add error handling UI if needed
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add place"
+      });
     }
   };
-  
-// In DayTimeline.jsx
-const handleSave = async () => {
-  try {
-    // Validate all activities have required data
-    const invalidActivities = activities.filter(activity => !activity.locationData);
-    if (invalidActivities.length > 0) {
-      console.error('Activities missing location data:', invalidActivities);
-      throw new Error('Some activities are missing required location data');
-    }
 
-    const updatedDay = await planApi.updateDayActivities(day.planId, index, activities);
-    onSave?.(updatedDay);
-    setIsEditing(false);
-  } catch (error) {
-    console.error('Failed to save changes:', error);
-    // Add error feedback to user
-    toast.error(error.message || 'Failed to save changes');
-  }
-};
+
+
+  const removeActivity = (index) => {
+    const newActivities = activities.filter((_, i) => i !== index);
+    setActivities(newActivities);
+  };
 
   const ActivityContent = ({ activity }) => (
     <div className="space-y-3">
@@ -172,17 +202,39 @@ const handleSave = async () => {
                 </span>
               </div>
               <Button
-                variant={isEditing ? "default" : "ghost"}
-                size="sm"
-                onClick={() => {
-                  if (isEditing) {
-                    handleSave();
-                  } else {
-                    setIsEditing(true);
-                  }
-                }}
-              >
-                {isEditing ? (
+  variant={isEditing ? "default" : "ghost"}
+  size="sm"
+  onClick={async () => {
+    if (isEditing) {
+      try {
+        setIsLoading(true);
+        await onSave(activities, index);
+        setIsEditing(false);
+        // After successful save, reload the page
+        window.location.reload();
+      } catch (error) {
+        console.error('Failed to save changes:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to save changes"
+        });
+        setActivities(day.activities);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setIsEditing(true);
+    }
+  }}
+  disabled={isLoading}
+>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : isEditing ? (
                   <>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
@@ -199,36 +251,44 @@ const handleSave = async () => {
           <AccordionContent>
             <CardContent>
               <div className="space-y-8">
-                {activities.map((activity, idx) => (
-                  <div 
-                    key={`activity-${day.date}-${idx}`}
-                    className="relative pl-8 border-l-2 border-primary group"
-                  >
-                    <div className="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary-foreground">
-                        {idx + 1}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <ActivityContent activity={activity} />
+                {isLoading ? (
+                  <>
+                    <ActivitySkeleton />
+                    <ActivitySkeleton />
+                    <ActivitySkeleton />
+                  </>
+                ) : (
+                  activities.map((activity, idx) => (
+                    <div 
+                      key={`activity-${day.date}-${idx}`}
+                      className="relative pl-8 border-l-2 border-primary group"
+                    >
+                      <div className="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary-foreground">
+                          {idx + 1}
+                        </span>
                       </div>
-                      {isEditing && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => removeActivity(idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <ActivityContent activity={activity} />
+                        </div>
+                        {isEditing && !isLoading && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => removeActivity(idx)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
-              {isEditing && (
+              {isEditing && !isLoading && (
                 <Dialog open={isAddingActivity} onOpenChange={setIsAddingActivity}>
                   <Button 
                     variant="outline" 

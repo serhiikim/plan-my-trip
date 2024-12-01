@@ -51,7 +51,6 @@ export default function PlanPage() {
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [regenerateInstructions, setRegenerateInstructions] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [editingDayIndex, setEditingDayIndex] = useState(null);
   const [isSavingDay, setIsSavingDay] = useState(false);
   const { toast } = useToast();
   const initialLoadRef = useRef(false);
@@ -94,19 +93,17 @@ export default function PlanPage() {
     }
   };
 
-  const handleSaveDay = async (updatedDay, index) => {
-    setIsSavingDay(true);
+  const handleSaveDay = async (activities, index) => {
     try {
-      // Call API to save the updated day
-      await planApi.updateDayActivities(planId, index, updatedDay.activities);
+      const updatedDay = await planApi.updateDayActivities(planId, index, activities);
       
-      // Update local state
+      // Update local state with new data
       const newData = { ...data };
-      newData.dailyPlans[index] = updatedDay;
+      newData.dailyPlans[index] = {
+        ...newData.dailyPlans[index],
+        activities: updatedDay.activities || updatedDay
+      };
       setData(newData);
-      
-      // Exit edit mode
-      setEditingDayIndex(null);
       
       toast({
         title: "Success",
@@ -118,8 +115,7 @@ export default function PlanPage() {
         title: "Error",
         description: error.message || "Failed to update day plan"
       });
-    } finally {
-      setIsSavingDay(false);
+      throw error;
     }
   };
 
@@ -269,21 +265,11 @@ export default function PlanPage() {
       <div className="space-y-4">
         {data?.dailyPlans.map((day, index) => (
           <div key={day.date} className="relative">
-            {editingDayIndex === index ? (
-              <EditableDayTimeline 
-                day={{ ...day, planId: planId }} // Add planId here
-                index={index}
-                onSave={(updatedDay) => handleSaveDay(updatedDay, index)}
-              />
-            ) : (
-              <div className="group">
-                <DayTimeline 
-                  day={{ ...day, planId: planId }} // Add planId here
-                  index={index}
-                  onSave={(updatedDay) => handleSaveDay(updatedDay, index)} // Add onSave here
-                />
-              </div>
-            )}
+            <DayTimeline 
+              day={{ ...day, planId: planId }}
+              index={index}
+              onSave={handleSaveDay}  // Just pass the reference to handleSaveDay
+            />
           </div>
         ))}
       </div>
