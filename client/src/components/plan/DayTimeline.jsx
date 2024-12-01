@@ -59,10 +59,8 @@ const handleSearch = async (query) => {
       const placeDetails = await planApi.getPlaceDetails(place.place_id);
       
       const newActivity = {
-        activity: place.name,
-        time: "12:00", // Default time, will be adjusted by backend
-        duration: "2 hours", // Default duration, will be adjusted by backend
-        location: place.formatted_address,
+        activity: place.name, // Default duration, will be adjusted by backend
+        location: placeDetails.placeName,
         locationData: placeDetails
       };
   
@@ -79,15 +77,11 @@ const handleSearch = async (query) => {
 // In DayTimeline.jsx
 const handleSave = async () => {
   try {
-    console.log('Saving with data:', {
-      planId: day.planId, // Check this value
-      index,
-      activitiesCount: activities.length
-    });
-
-    if (!day.planId) {
-      console.error('Missing planId in day object:', day);
-      throw new Error('Plan ID is required');
+    // Validate all activities have required data
+    const invalidActivities = activities.filter(activity => !activity.locationData);
+    if (invalidActivities.length > 0) {
+      console.error('Activities missing location data:', invalidActivities);
+      throw new Error('Some activities are missing required location data');
     }
 
     const updatedDay = await planApi.updateDayActivities(day.planId, index, activities);
@@ -95,7 +89,8 @@ const handleSave = async () => {
     setIsEditing(false);
   } catch (error) {
     console.error('Failed to save changes:', error);
-    // Add error handling UI if needed
+    // Add error feedback to user
+    toast.error(error.message || 'Failed to save changes');
   }
 };
 

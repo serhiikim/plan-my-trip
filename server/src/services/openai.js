@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { locationService } from '../services/location.js';
+import { ObjectId } from 'mongodb';
 
 dotenv.config();
 
@@ -107,75 +109,89 @@ export async function generateTravelPlan(planData) {
   }
 }
 
-export async function reorganizeDaySchedule({ activities, preferences, cityContext, date }) {
-  const systemPrompt = `You are an expert travel planner. Your task is to reorganize a day's activities based on newly added or removed locations.
-  You must respond in valid JSON format containing an array of activities with the following structure:
-  [{
+
+//TODO Also use sessions for autocomplete to reduce costs
+export async function reorganizeDaySchedule({ 
+  activities, 
+  transportation,
+  travelGroup,
+  cityContext, 
+  date
+}) {
+  const systemPrompt = `You are an expert travel planner. Your task is to reorganize ONLY the provided activities in ${cityContext}. 
+
+CRITICAL RULES:
+1. DO NOT add any new activities
+2. DO NOT add any transit activities or travel segments
+3. DO NOT split existing activities
+4. ONLY reorder and adjust timings of the provided activities
+5. Include transit information in the "transportation" field of each activity
+
+REQUIRED FIELD RULES:
+- "time" must always be in HH:MM format
+- "duration" must always be specified (e.g., "2 hours", "1.5 hours", "45 minutes")
+- "cost" must always include a specific value or range (e.g., "€20", "€15-€25", "Free")
+- Never use "N/A", "Various", or "TBD" for any field
+- For uncertain costs, provide a reasonable estimate range (e.g., "€20-€40")
+- For free activities, use "Free" instead of €0 or N/A
+
+You must respond with a JSON object exactly like this:
+{
+  "activities": [{
     "time": "HH:MM",
     "duration": "X hours",
     "activity": "Description",
-    "location": "Place name (with address if known with certainty)",
-    "cost": "Estimated cost for the entire group",
-    "transportation": "How to get there",
+    "location": "Place Name",
+    "cost": "Estimated cost for entire travel_group",
+    "transportation": "Transport details to reach this location",
     "notes": "Additional information"
   }]
+}
 
-  Consider:
-  - Opening hours of attractions
-  - Travel times between locations
-  - Logical geographical flow of activities
-  - Local customs and practices
-  - Weather-appropriate activities
-  - Budget constraints
-  
-  Location Formatting Rules:
-  - Never modify the provided location data
-  - Use official or commonly known place names
-  - For tourist attractions, landmark names are sufficient
-  
-  Important Budget Rules:
-  - ALL costs should be for the entire group, NOT per person
-  - Do not split or show per-person costs
-  - Include group tickets/packages where available
-  
-  Transportation Rules:
-  - Provide specific transport modes and routes
-  - Include walking times for nearby locations
-  - Consider user's preferred transportation methods
-  
-  Timing Rules:
-  - Use 24-hour format for time (HH:MM)
-  - Account for realistic travel times between locations
-  - Consider typical visiting durations
-  - Maintain appropriate meal times
-  - Account for venue opening hours
-  
-  Notes Guidelines:
-  - For new locations, provide specific local insights
-  - Include relevant cultural or historical context
-  - Add practical tips (best photo spots, busy times, etc.)
-  - Mention any special considerations based on group type`;
+Each activity must:
+- Keep its original core purpose and location
+- Only have its timing and order adjusted
+- Include transport details in the "transportation" field
+- NOT be split into multiple activities
 
-  const userMessage = JSON.stringify({
-    date,
-    cityContext,
-    preferences,
-    activities
+Important Budget Rules:
+- ALL costs should be for the entire group, NOT per person (exception is a solo trip)
+- Do not split or show per-person costs
+- Include group tickets/packages where available
+- For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
+- Always provide specific cost estimates, even for variable pricing
+- For venues with variable pricing, provide a reasonable range (e.g., "€50-€100")
+
+Notes Guidelines:
+- For each location, provide specific local insights
+- Include relevant cultural or historical context
+- Add practical tips (best photo spots, busy times, etc.)
+- Mention group-specific considerations
+- Include insider recommendations
+- Note any seasonal considerations for the given date`;
+
+try {
+  const completion = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { 
+        role: "user", 
+        content: JSON.stringify({
+          date,
+          cityContext,
+          transportation,
+          travelGroup,
+          activities,
+          activityCount: activities.length
+        })
+      }
+    ],
+    temperature: 0.7,
+    response_format: { type: "json_object" }
   });
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage }
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
-    });
-
-    // Parse and validate the response
-    try {
       // Access the activities array from the response
       const result = JSON.parse(completion.choices[0].message.content);
       const reorganizedActivities = result.activities || result; // handle both formats
@@ -184,7 +200,7 @@ export async function reorganizeDaySchedule({ activities, preferences, cityConte
       return Array.isArray(reorganizedActivities) ? 
         reorganizedActivities.map((newActivity, index) => ({
           ...newActivity,
-          locationData: activities[index]?.locationData || newActivity.locationData
+          locationData: activities[index].locationData
         })) : [];
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
@@ -196,12 +212,3 @@ export async function reorganizeDaySchedule({ activities, preferences, cityConte
   }
 }
 
-// Helper function to ensure dates are in correct format
-function formatDate(dateString) {
-  try {
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
-  } catch (error) {
-    return dateString;
-  }
-}

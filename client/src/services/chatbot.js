@@ -149,7 +149,7 @@ class ChatBotService {
       this.travelData = {
         destination: null,
         dates: null,
-        travelGroup: null,  // Added this to match your stages
+        travel_group: null,  // Added this to match your stages
         flight: {
           booked: false,
           details: null

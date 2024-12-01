@@ -27,13 +27,25 @@ router.put('/:planId/days/:dayIndex/activities', async (req, res) => {
     const { activities } = req.body;
     const userId = new ObjectId(req.user.userId);
 
+    const hasInvalidActivities = activities.some(activity => !activity.locationData);
+    if (hasInvalidActivities) {
+      return res.status(400).json({ 
+        message: 'All activities must include location data'
+      });
+    }
+
+    const plan = await db.collection('plans').findOne({ 
+      _id: planId,
+      userId 
+    });
+
     const itinerary = await db.collection('itineraries').findOne({ 
       planId,
       userId 
     });
 
-    if (!itinerary) {
-      return res.status(404).json({ message: 'Itinerary not found' });
+    if (!plan || !itinerary) {
+      return res.status(404).json({ message: 'Plan or itinerary not found' });
     }
 
     if (!itinerary.dailyPlans[dayIndex]) {
@@ -43,7 +55,8 @@ router.put('/:planId/days/:dayIndex/activities', async (req, res) => {
     // Call LLM service to reorganize the day's schedule
     const reorganizedActivities = await reorganizeDaySchedule({
       activities,
-      preferences: itinerary.preferences || {},
+      transportation: plan.transportation,
+      travelGroup: plan.travel_group,
       cityContext: itinerary.destination,
       date: itinerary.dailyPlans[dayIndex].date
     });

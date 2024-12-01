@@ -64,26 +64,25 @@ getPlaceDetails: async (placeId) => {
   }
 },
 
-  // Update activities for a specific day in the plan
-  updateDayPlan: async (planId, dayIndex, activities) => {
-    try {
-      const { data } = await api.put(`/plans/${planId}/days/${dayIndex}`, {
-        activities
-      });
-      return data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to update day plan');
-    }
-  },
-
   // Update your DayTimeline component's handleSave function to use this
   updateDayActivities: async (planId, dayIndex, activities) => {
     try {
+      // Validate activities have locationData before sending
+      const validActivities = activities.every(activity => activity.locationData);
+      if (!validActivities) {
+        throw new Error('Some activities are missing location data');
+      }
+
       const { data } = await api.put(`/plans/${planId}/days/${dayIndex}/activities`, {
-        activities
+        activities: activities.map(activity => ({
+          ...activity,
+          // Ensure locationData is explicitly included
+          locationData: activity.locationData
+        }))
       });
       return data;
     } catch (error) {
+      console.error('Activity update error:', error);
       throw new Error(error.response?.data?.message || 'Failed to update activities');
     }
   },
