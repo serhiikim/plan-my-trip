@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { auth } from './auth';
+import { placesSessionManager } from './placesSessionManager';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3003/api';
 
@@ -35,34 +36,38 @@ api.interceptors.response.use(
 export const planApi = {
 
 
-  // Search places using Google Places Autocomplete
-// Search places using Google Places Autocomplete
-searchPlaces: async (query, area) => {
-  try {
-    const { data } = await api.get('/places/search', {
-      params: { 
-        query,
-        area 
-      }
-    });
-    return data.predictions;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to search places');
-  }
-},
+  searchPlaces: async (query, area) => {
+    try {
+      const sessionToken = placesSessionManager.getToken();
+      const { data } = await api.get('/places/search', {
+        params: { 
+          query,
+          area,
+          sessionToken
+        }
+      });
+      return data.predictions;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to search places');
+    }
+  },
 
-  // Get detailed place information
-// Get detailed place information
-getPlaceDetails: async (placeId) => {
-  try {
-    // Remove the 'places/' prefix if it exists
-    const cleanPlaceId = placeId.replace('places/', '');
-    const { data } = await api.get(`/places/${cleanPlaceId}`);
-    return data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch place details');
-  }
-},
+  getPlaceDetails: async (placeId) => {
+    try {
+      const sessionToken = placesSessionManager.getToken();
+      // Remove the 'places/' prefix if it exists
+      const cleanPlaceId = placeId.replace('places/', '');
+      const { data } = await api.get(`/places/${cleanPlaceId}`, {
+        params: {
+          sessionToken
+        }
+      });
+      placesSessionManager.resetToken(); // Reset token after getting place details
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch place details');
+    }
+  },
 
   // Update your DayTimeline component's handleSave function to use this
   updateDayActivities: async (planId, dayIndex, activities) => {

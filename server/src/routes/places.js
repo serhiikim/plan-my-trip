@@ -5,7 +5,7 @@ const router = express.Router();
 const client = new Client({});
 
 router.get('/search', async (req, res) => {
-    const { query, area } = req.query;
+  const { query, area, sessionToken } = req.query; 
   
     if (!query || query.length < 3) {
       return res.json({ predictions: [] });
@@ -15,6 +15,7 @@ router.get('/search', async (req, res) => {
   
       const requestBody = {
         input: query,
+        sessionToken,
         ...(area && {
           includedRegionCodes: [area], // Use includedRegionCodes for filtering
         }),
@@ -61,12 +62,18 @@ router.get('/search', async (req, res) => {
   
   
 
-router.get('/:placeId', async (req, res) => {
+  router.get('/:placeId', async (req, res) => {
     const { placeId } = req.params;
+    const { sessionToken } = req.query;
   
     try {
+      const url = new URL(`https://places.googleapis.com/v1/places/${placeId}`);
+      if (sessionToken) {
+        url.searchParams.append('sessionToken', sessionToken);
+      }
+
       const response = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}`,
+        url.toString(),
         {
           headers: {
             'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
