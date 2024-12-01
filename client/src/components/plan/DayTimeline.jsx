@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { debounce } from 'lodash';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
@@ -13,39 +14,48 @@ import { useToast } from "@/hooks/use-toast";
 export default function DayTimeline({ day, index, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
   const [activities, setActivities] = useState(day.activities);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = async () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      const invalidActivities = activities.filter(activity => !activity.locationData);
-      if (invalidActivities.length > 0) {
-        throw new Error('Some activities are missing required location data');
+  const debouncedSearch = useCallback(
+    debounce(async (query) => {
+      if (query.length < 3) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
       }
-
-      // Pass activities to parent
-      await onSave(activities, index);
-      setIsEditing(false);
-      
-    } catch (error) {
-      console.error('Failed to save changes:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to save changes"
-      });
-      // Reset activities to original state on error
-      setActivities(day.activities);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
+      try {
+        const countryCode = activities[0]?.locationData?.addressComponents?.find(
+          component => component.types.includes('country')
+        )?.short_name;
+  
+        const results = await planApi.searchPlaces(query, countryCode);
+        setSearchResults(results || []);
+      } catch (error) {
+        console.error('Search failed:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to search places"
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300),
+    [activities, toast]
+  );
+  
+  // Add cleanup
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
 
   const formatDate = (dateString) => {
     try {
@@ -70,27 +80,11 @@ export default function DayTimeline({ day, index, onSave }) {
     </div>
   );
 
-  const handleSearch = async (query) => {
-    if (query.length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      const countryCode = activities[0]?.locationData?.addressComponents?.find(
-        component => component.types.includes('country')
-      )?.short_name;
-
-      const results = await planApi.searchPlaces(query, countryCode);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Search failed:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to search places"
-      });
-    }
+  const handleSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setIsSearching(true);
+    debouncedSearch(query);
   };
 
   const handleSelectPlace = async (place) => {
@@ -299,39 +293,54 @@ export default function DayTimeline({ day, index, onSave }) {
                     Add Activity
                   </Button>
                   
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add New Activity</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                      <Input
-                        placeholder="Search for a place..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          handleSearch(e.target.value);
-                        }}
-                      />
-                      {searchResults.length > 0 && (
-                        <div className="max-h-[300px] overflow-y-auto space-y-2">
-                          {searchResults.map((place) => (
-                            <Button
-                              key={place.place_id}
-                              variant="ghost"
-                              className="w-full justify-start text-left"
-                              onClick={() => handleSelectPlace(place)}
-                            >
-                              <MapPin className="h-4 w-4 mr-2" />
-                              {place.name}
-                              <span className="text-sm text-muted-foreground ml-2">
-                                {place.formatted_address}
-                              </span>
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
+                  <DialogContent className="overflow-hidden">
+  <DialogHeader>
+    <DialogTitle>Add New Activity</DialogTitle>
+  </DialogHeader>
+  <div className="space-y-4 pt-4">
+    <div className="relative">
+      <Input
+        placeholder="Search for a place..."
+        value={searchQuery}
+        onChange={handleSearch}
+        disabled={isLoading}
+      />
+      {isSearching && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+    </div>
+
+    {searchResults.length > 0 && (
+      <div className="max-h-[300px] overflow-y-auto space-y-2 relative">
+        {searchResults.map((place) => (
+          <Button
+            key={place.place_id}
+            variant="ghost"
+            className="w-full justify-start text-left hover:bg-accent relative"
+            onClick={() => handleSelectPlace(place)}
+            disabled={isLoading}
+          >
+            <MapPin className="h-4 w-4 mr-2 shrink-0" />
+            <div className="flex flex-col items-start truncate">
+              <span className="truncate w-full">{place.name}</span>
+              <span className="text-sm text-muted-foreground truncate w-full">
+                {place.formatted_address}
+              </span>
+            </div>
+          </Button>
+        ))}
+      </div>
+    )}
+
+    {searchQuery.length >= 3 && searchResults.length === 0 && !isSearching && (
+      <p className="text-sm text-muted-foreground">
+        No places found
+      </p>
+    )}
+  </div>
+</DialogContent>
                 </Dialog>
               )}
             </CardContent>
