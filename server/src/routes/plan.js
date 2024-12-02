@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../services/db.js';
-import { generateTravelPlan } from '../services/openai.js';
+import { generateTravelPlan, reorganizeDaySchedule } from '../services/openai.js';
 import { ObjectId } from 'mongodb';
 import { locationService } from '../services/location.js';
 
@@ -19,6 +19,79 @@ const validateObjectId = (req, res, next) => {
   req.validatedPlanId = new ObjectId(planId);
   next();
 };
+
+router.put('/:planId/days/:dayIndex/activities', async (req, res) => {
+  try {
+    const planId = new ObjectId(req.params.planId);
+    const dayIndex = parseInt(req.params.dayIndex);
+    const { activities } = req.body;
+    const userId = new ObjectId(req.user.userId);
+
+    const hasInvalidActivities = activities.some(activity => !activity.locationData);
+    if (hasInvalidActivities) {
+      return res.status(400).json({ 
+        message: 'All activities must include location data'
+      });
+    }
+
+    const plan = await db.collection('plans').findOne({ 
+      _id: planId,
+      userId 
+    });
+
+    const itinerary = await db.collection('itineraries').findOne({ 
+      planId,
+      userId 
+    });
+
+    if (!plan || !itinerary) {
+      return res.status(404).json({ message: 'Plan or itinerary not found' });
+    }
+
+    if (!itinerary.dailyPlans[dayIndex]) {
+      return res.status(404).json({ message: 'Day not found' });
+    }
+
+    // Call LLM service to reorganize the day's schedule
+    const reorganizedActivities = await reorganizeDaySchedule({
+      activities,
+      transportation: plan.transportation,
+      travelGroup: plan.travel_group,
+      cityContext: itinerary.destination,
+      date: itinerary.dailyPlans[dayIndex].date
+    });
+
+    // Update the specific day's activities
+    const updateResult = await db.collection('itineraries').updateOne(
+      { planId, userId },
+      { 
+        $set: {
+          [`dailyPlans.${dayIndex}.activities`]: reorganizedActivities,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(400).json({ message: 'Failed to update activities' });
+    }
+
+    // Get the updated itinerary to return the new state
+    const updatedItinerary = await db.collection('itineraries').findOne({ 
+      planId,
+      userId 
+    });
+    
+    res.json(updatedItinerary.dailyPlans[dayIndex]);
+
+  } catch (error) {
+    console.error('Update activities error:', error);
+    res.status(500).json({ 
+      message: 'Failed to update activities',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 // In your route handler
 router.post('/:itineraryId/reprocess-locations', async (req, res) => {

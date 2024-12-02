@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { auth } from './auth';
+import { placesSessionManager } from './placesSessionManager';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3003/api';
 
@@ -25,7 +26,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       auth.logout();
-      window.location.href = '/login';
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -33,6 +34,63 @@ api.interceptors.response.use(
 
 // Plan and Itinerary endpoints
 export const planApi = {
+
+
+  searchPlaces: async (query, area) => {
+    try {
+      const sessionToken = placesSessionManager.getToken();
+      const { data } = await api.get('/places/search', {
+        params: { 
+          query,
+          area,
+          sessionToken
+        }
+      });
+      return data.predictions;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to search places');
+    }
+  },
+
+  getPlaceDetails: async (placeId) => {
+    try {
+      const sessionToken = placesSessionManager.getToken();
+      // Remove the 'places/' prefix if it exists
+      const cleanPlaceId = placeId.replace('places/', '');
+      const { data } = await api.get(`/places/${cleanPlaceId}`, {
+        params: {
+          sessionToken
+        }
+      });
+      placesSessionManager.resetToken(); // Reset token after getting place details
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch place details');
+    }
+  },
+
+  // Update your DayTimeline component's handleSave function to use this
+  updateDayActivities: async (planId, dayIndex, activities) => {
+    try {
+      // Validate activities have locationData before sending
+      const validActivities = activities.every(activity => activity.locationData);
+      if (!validActivities) {
+        throw new Error('Some activities are missing location data');
+      }
+
+      const { data } = await api.put(`/plans/${planId}/days/${dayIndex}/activities`, {
+        activities: activities.map(activity => ({
+          ...activity,
+          // Ensure locationData is explicitly included
+          locationData: activity.locationData
+        }))
+      });
+      return data;
+    } catch (error) {
+      console.error('Activity update error:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update activities');
+    }
+  },
   // Generate itinerary for a plan
   generateItinerary: async (planId) => {
     try {

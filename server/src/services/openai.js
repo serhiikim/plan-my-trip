@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { locationService } from '../services/location.js';
+import { ObjectId } from 'mongodb';
 
 dotenv.config();
 
@@ -107,12 +109,107 @@ export async function generateTravelPlan(planData) {
   }
 }
 
-// Helper function to ensure dates are in correct format
-function formatDate(dateString) {
+
+//TODO Also use sessions for autocomplete to reduce costs
+export async function reorganizeDaySchedule({ 
+  activities, 
+  transportation,
+  travelGroup,
+  cityContext, 
+  date
+}) {
+  const systemPrompt = `You are an expert travel planner. Your task is to reorganize ONLY the provided activities in ${cityContext}. 
+
+CRITICAL RULES:
+1. DO NOT add any new activities
+2. DO NOT add any transit activities or travel segments
+3. DO NOT split existing activities
+4. ONLY reorder and adjust timings of the provided activities
+5. Include transit information in the "transportation" field of each activity
+6. PRESERVE EXACTLY the "activity" and "location" fields as given in input
+7. DO NOT modify or rewrite activity names or locations
+
+REQUIRED FIELD RULES:
+- "time" must always be in HH:MM format
+- "duration" must always be specified (e.g., "2 hours", "1.5 hours", "45 minutes")
+- "cost" must always include a specific value or range (e.g., "€20", "€15-€25", "Free")
+- Never use "N/A", "Various", or "TBD" for any field
+- For uncertain costs, provide a reasonable estimate range (e.g., "€20-€40")
+- For free activities, use "Free" instead of €0 or N/A
+
+You must respond with a JSON object exactly like this:
+{
+  "activities": [{
+    "time": "HH:MM",
+    "duration": "X hours",
+    "activity": "Description",
+    "location": "Place Name",
+    "cost": "Estimated cost for entire travel_group",
+    "transportation": "Transport details to reach this location",
+    "notes": "Additional information"
+  }]
+}`;
+
   try {
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: JSON.stringify({
+            date,
+            cityContext,
+            transportation,
+            travelGroup,
+            activities,
+            activityCount: activities.length
+          })
+        }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+
+    try {
+      const result = JSON.parse(completion.choices[0].message.content);
+      const reorganizedActivities = result.activities || result;
+
+      if (!Array.isArray(reorganizedActivities)) {
+        throw new Error('Invalid response format from LLM');
+      }
+
+      // Create a map of original activities by their unique identifiers
+      const originalActivitiesMap = new Map(
+        activities.map(activity => [
+          `${activity.activity}|${activity.location}`,
+          activity
+        ])
+      );
+
+      // Map reorganized activities while preserving locationData
+      return reorganizedActivities.map(newActivity => {
+        const key = `${newActivity.activity}|${newActivity.location}`;
+        const originalActivity = originalActivitiesMap.get(key);
+
+        if (!originalActivity) {
+          console.error('Could not find matching original activity:', newActivity);
+          return newActivity;
+        }
+
+        return {
+          ...newActivity,
+          locationData: originalActivity.locationData
+        };
+      });
+
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response as JSON:', parseError);
+      throw new Error('Generated schedule was not in valid JSON format');
+    }
   } catch (error) {
-    return dateString;
+    console.error('OpenAI API Error:', error);
+    throw error;
   }
 }
+

@@ -37,6 +37,8 @@ import {
   RefreshCw,
   FileText,
   Trash2,
+  Edit2,
+  Save,
 } from 'lucide-react';
 import { PlanLoader } from '@/components/common/PlanLoader';
 
@@ -49,6 +51,7 @@ export default function PlanPage() {
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [regenerateInstructions, setRegenerateInstructions] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSavingDay, setIsSavingDay] = useState(false);
   const { toast } = useToast();
   const initialLoadRef = useRef(false);
   const pollingRef = useRef(null);
@@ -87,6 +90,32 @@ export default function PlanPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDay = async (activities, index) => {
+    try {
+      const updatedDay = await planApi.updateDayActivities(planId, index, activities);
+      
+      // Update local state with new data
+      const newData = { ...data };
+      newData.dailyPlans[index] = {
+        ...newData.dailyPlans[index],
+        activities: updatedDay.activities || updatedDay
+      };
+      setData(newData);
+      
+      toast({
+        title: "Success",
+        description: "Day plan updated successfully"
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update day plan"
+      });
+      throw error;
     }
   };
 
@@ -231,6 +260,20 @@ export default function PlanPage() {
     const handlePrint = () => {
       window.print();
     };
+
+    const renderTimeline = () => (
+      <div className="space-y-4">
+        {data?.dailyPlans.map((day, index) => (
+          <div key={day.date} className="relative">
+            <DayTimeline 
+              day={{ ...day, planId: planId }}
+              index={index}
+              onSave={handleSaveDay}  // Just pass the reference to handleSaveDay
+            />
+          </div>
+        ))}
+      </div>
+    );
   
   // Initial load effect
   useEffect(() => {
@@ -361,17 +404,8 @@ export default function PlanPage() {
 <div className="w-full">
   {data && <MapView dailyPlans={data.dailyPlans} />}
 </div>
-  
-          {/* Timeline View */}
-          <div className="space-y-4">
-            {data?.dailyPlans.map((day, index) => (
-              <DayTimeline 
-                key={day.date} 
-                day={day} 
-                index={index}
-              />
-            ))}
-          </div>
+{renderTimeline()}
+
   
           {data?.generalNotes && (
             <Card>
@@ -383,6 +417,8 @@ export default function PlanPage() {
               </CardContent>
             </Card>
           )}
+
+
 
           {/* Add Delete Dialog */}
            <AlertDialog 

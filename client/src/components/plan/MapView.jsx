@@ -46,19 +46,29 @@ const MapView = ({ dailyPlans }) => {
     };
 
     const updateMarkers = () => {
-        if (!map.current || !dailyPlans) return;
-
+        if (!map.current || !dailyPlans) {
+            console.log('Map or dailyPlans not ready:', { map: !!map.current, dailyPlans: !!dailyPlans });
+            return;
+        }
+    
         const selectedDayPlan = dailyPlans[parseInt(selectedDay)];
-        if (!selectedDayPlan) return;
-
+        if (!selectedDayPlan) {
+            console.log('No plan found for selected day:', selectedDay);
+            return;
+        }
+    
+        console.log('Updating markers for day:', selectedDay, 'Activities:', selectedDayPlan.activities.length);
+    
+        // Clear existing markers
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
-
+    
         const bounds = new maplibregl.LngLatBounds();
         let hasValidCoordinates = false;
-
+    
         selectedDayPlan.activities.forEach((activity, activityIndex) => {
             if (activity.locationData?.coordinates) {
+                console.log('Adding marker for activity:', activityIndex + 1, activity.locationData.coordinates);
                 const [lat, lng] = activity.locationData.coordinates;
                 const coordinates = [lng, lat];
 
@@ -117,14 +127,16 @@ el.innerHTML = `${activityIndex + 1}`;
         const initializeMap = async () => {
             try {
                 if (!mapContainer.current) return;
-
+    
+                // Clear existing map and markers
                 if (map.current) {
+                    markersRef.current.forEach((marker) => marker.remove());
                     map.current.remove();
                 }
-
+    
                 client.current = new TargomoClient(TARGOMO_REGION, TARGOMO_API_KEY);
                 const initialCenter = getInitialMapCenter();
-
+    
                 map.current = new maplibregl.Map({
                     container: mapContainer.current,
                     style: client.current.basemaps.getGLStyleURL('Light'),
@@ -133,8 +145,7 @@ el.innerHTML = `${activityIndex + 1}`;
                     renderWorldCopies: true,
                     attributionControl: true
                 });
-
-
+    
                 // Add navigation control
                 map.current.addControl(
                     new maplibregl.NavigationControl({
@@ -143,27 +154,29 @@ el.innerHTML = `${activityIndex + 1}`;
                     }),
                     'top-right'
                 );
-
+    
                 // Add scale control
                 map.current.addControl(
                     new maplibregl.ScaleControl(),
                     'bottom-right'
                 );
-
+    
                 map.current.on('load', () => {
                     setIsMapInitialized(true);
                     setIsLoading(false);
+                    // Update markers immediately after map is loaded
+                    updateMarkers();
                 });
-
+    
             } catch (err) {
                 console.error('Map initialization error:', err);
                 setError(`Failed to load map: ${err.message}`);
                 setIsLoading(false);
             }
         };
-
+    
         initializeMap();
-
+    
         return () => {
             if (map.current) {
                 markersRef.current.forEach((marker) => marker.remove());
@@ -171,13 +184,22 @@ el.innerHTML = `${activityIndex + 1}`;
                 map.current = null;
             }
         };
-    }, []);
+    }, []); // Add dailyPlans as a dependency
 
+    useEffect(() => {
+        if (map.current && isMapInitialized) {
+            // Force update markers when dailyPlans changes
+            setSelectedDay('0'); // Reset to first day
+            updateMarkers();
+        }
+    }, [dailyPlans]);
+    
+    // Keep the existing effect for selected day changes
     useEffect(() => {
         if (isMapInitialized) {
             updateMarkers();
         }
-    }, [selectedDay, isMapInitialized, dailyPlans]);
+    }, [selectedDay, isMapInitialized]);
 
     if (error) {
         return (
