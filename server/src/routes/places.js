@@ -77,7 +77,7 @@ router.get('/search', async (req, res) => {
         {
           headers: {
             'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
-            'X-Goog-FieldMask': 'name,formattedAddress,location,addressComponents,types'
+            'X-Goog-FieldMask': 'name,formattedAddress,location,addressComponents,types,internationalPhoneNumber,nationalPhoneNumber,rating,regularOpeningHours,userRatingCount,websiteUri'
           }
         }
       );
@@ -104,7 +104,15 @@ router.get('/search', async (req, res) => {
         updatedAt: new Date().toISOString(),
         geocodingProvider: 'google',
         types: place.types,
-        addressComponents: place.addressComponents
+        addressComponents: place.addressComponents,
+        place_details: {
+          internationalPhoneNumber: place.internationalPhoneNumber,
+          nationalPhoneNumber: place.nationalPhoneNumber,
+          rating: place.rating,
+          regularOpeningHours: place.regularOpeningHours,
+          userRatingCount: place.userRatingCount,
+          websiteUri: place.websiteUri
+        }
       };
   
       res.json(formattedPlace);

@@ -3,6 +3,7 @@ import { db } from '../services/db.js';
 import { generateTravelPlan, reorganizeDaySchedule } from '../services/openai.js';
 import { ObjectId } from 'mongodb';
 import { locationService } from '../services/location.js';
+import { enrichActivitiesWithPlaceDetails } from '../services/placeDetails.js';
 
 const router = express.Router();
 
@@ -268,7 +269,7 @@ router.get('/:planId/itinerary', async (req, res) => {
 router.post('/:planId/generate', validateObjectId, async (req, res) => {
   try {
     const planId = req.validatedPlanId;
-    const userId = new ObjectId(req.user.userId); // Get userId
+    const userId = new ObjectId(req.user.userId);
 
     const plan = await db.collection('plans').findOne({ _id: planId });
     if (!plan) {
@@ -283,9 +284,25 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
     const generatedPlan = await generateTravelPlan(plan);
     const enrichedPlan = await locationService.enrichPlanWithLocations(generatedPlan, plan);
 
+    // Check if enrichedPlan has the expected structure
+    if (!enrichedPlan || !Array.isArray(enrichedPlan.dailyPlans)) {
+      console.error('Invalid enriched plan structure:', enrichedPlan);
+      throw new Error('Invalid plan structure received from location service');
+    }
+
+    // Now enrich with place details
+    const enrichedDailyPlans = await Promise.all(enrichedPlan.dailyPlans.map(async (day) => {
+      if (Array.isArray(day.activities)) {
+        day.activities = await enrichActivitiesWithPlaceDetails(day.activities);
+      }
+      return day;
+    }));
+
+    enrichedPlan.dailyPlans = enrichedDailyPlans;
+
     const itineraryData = {
       planId,
-      userId, // Add userId
+      userId,
       ...enrichedPlan,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -293,7 +310,6 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
 
     const result = await db.collection('itineraries').insertOne(itineraryData);
 
-    // Update plan status
     await db.collection('plans').updateOne(
       { _id: planId },
       { 
@@ -311,7 +327,6 @@ router.post('/:planId/generate', validateObjectId, async (req, res) => {
   } catch (error) {
     console.error('Failed to generate itinerary:', error);
     
-    // Update plan status to error
     await db.collection('plans').updateOne(
       { _id: req.validatedPlanId },
       { 
@@ -417,6 +432,22 @@ router.post('/:planId/regenerate', async (req, res) => {
 
     const generatedPlan = await generateTravelPlan(planData);
     const enrichedPlan = await locationService.enrichPlanWithLocations(generatedPlan, plan);
+
+    // Check if enrichedPlan has the expected structure
+    if (!enrichedPlan || !Array.isArray(enrichedPlan.dailyPlans)) {
+      console.error('Invalid enriched plan structure:', enrichedPlan);
+      throw new Error('Invalid plan structure received from location service');
+    }
+
+    // Now enrich with place details
+    const enrichedDailyPlans = await Promise.all(enrichedPlan.dailyPlans.map(async (day) => {
+      if (Array.isArray(day.activities)) {
+        day.activities = await enrichActivitiesWithPlaceDetails(day.activities);
+      }
+      return day;
+    }));
+
+    enrichedPlan.dailyPlans = enrichedDailyPlans;
 
     await db.collection('itineraries').insertOne({
       planId,
