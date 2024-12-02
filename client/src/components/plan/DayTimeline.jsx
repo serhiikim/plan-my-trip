@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from 'lucide-react';
 import { planApi } from '../../services/api';
@@ -28,12 +28,12 @@ export default function DayTimeline({ day, index, onSave }) {
         setIsSearching(false);
         return;
       }
-  
+
       try {
         const countryCode = activities[0]?.locationData?.addressComponents?.find(
-          component => component.types.includes('country')
+          (component) => component.types.includes('country')
         )?.short_name;
-  
+
         const results = await planApi.searchPlaces(query, countryCode);
         setSearchResults(results || []);
       } catch (error) {
@@ -49,7 +49,7 @@ export default function DayTimeline({ day, index, onSave }) {
     }, 300),
     [activities, toast]
   );
-  
+
   useEffect(() => {
     return () => {
       debouncedSearch.cancel();
@@ -86,17 +86,37 @@ export default function DayTimeline({ day, index, onSave }) {
     debouncedSearch(query);
   };
 
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      await onSave(activities, index);
+      setIsEditing(false);
+      // Reload the page after successful save
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to save changes:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to save changes"
+      });
+      setActivities(day.activities);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSelectPlace = async (place) => {
     try {
       const placeDetails = await planApi.getPlaceDetails(place.place_id);
-      
+
       const newActivity = {
         activity: place.name,
         location: placeDetails.placeName,
         locationData: placeDetails,
         imageUrl: `https://source.unsplash.com/80x80/?${encodeURIComponent(place.name)}`
       };
-  
+
       setActivities([...activities, newActivity]);
       setIsAddingActivity(false);
       setSearchQuery('');
@@ -165,7 +185,7 @@ export default function DayTimeline({ day, index, onSave }) {
               </div>
             </div>
           )}
-          
+
           <div className="flex gap-4 text-sm">
             {activity.transportation && (
               <div className="flex items-center gap-2">
@@ -238,27 +258,7 @@ export default function DayTimeline({ day, index, onSave }) {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={async () => {
-                          try {
-                            setIsLoading(true);
-                            await onSave(activities, index);
-                            setIsEditing(false);
-                            toast({
-                              title: "Success",
-                              description: "Activities updated successfully",
-                            });
-                          } catch (error) {
-                            console.error('Failed to save changes:', error);
-                            toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: error.message || "Failed to save changes"
-                            });
-                            setActivities(day.activities);
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        }}
+                        onClick={handleSave}
                         disabled={isLoading}
                       >
                         {isLoading ? (
@@ -295,7 +295,7 @@ export default function DayTimeline({ day, index, onSave }) {
                   </>
                 ) : (
                   activities.map((activity, idx) => (
-                    <div 
+                    <div
                       key={`activity-${day.date}-${idx}`}
                       className="relative pl-8 border-l-2 border-primary/20 group"
                     >
@@ -306,7 +306,7 @@ export default function DayTimeline({ day, index, onSave }) {
                       </div>
                       <div className="relative">
                         {isEditing && (
-                          <Button 
+                          <Button
                             variant="destructive"
                             size="icon"
                             className="absolute -right-2 -top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
@@ -323,15 +323,15 @@ export default function DayTimeline({ day, index, onSave }) {
 
                 {isEditing && !isLoading && (
                   <Dialog open={isAddingActivity} onOpenChange={setIsAddingActivity}>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full py-6 border-dashed hover:border-primary hover:bg-primary/5"
                       onClick={() => setIsAddingActivity(true)}
                     >
                       <Plus className="h-5 w-5 mr-2" />
                       Add New Activity
                     </Button>
-                    
+
                     <DialogContent className="max-w-lg">
                       <DialogHeader>
                         <DialogTitle>Add New Activity</DialogTitle>
