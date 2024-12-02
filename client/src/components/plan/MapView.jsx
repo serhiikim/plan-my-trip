@@ -57,8 +57,6 @@ const MapView = ({ dailyPlans }) => {
             return;
         }
     
-        console.log('Updating markers for day:', selectedDay, 'Activities:', selectedDayPlan.activities.length);
-    
         // Clear existing markers
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
@@ -68,7 +66,6 @@ const MapView = ({ dailyPlans }) => {
     
         selectedDayPlan.activities.forEach((activity, activityIndex) => {
             if (activity.locationData?.coordinates) {
-                console.log('Adding marker for activity:', activityIndex + 1, activity.locationData.coordinates);
                 const [lat, lng] = activity.locationData.coordinates;
                 const coordinates = [lng, lat];
 
