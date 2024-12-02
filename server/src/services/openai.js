@@ -126,6 +126,8 @@ CRITICAL RULES:
 3. DO NOT split existing activities
 4. ONLY reorder and adjust timings of the provided activities
 5. Include transit information in the "transportation" field of each activity
+6. PRESERVE EXACTLY the "activity" and "location" fields as given in input
+7. DO NOT modify or rewrite activity names or locations
 
 REQUIRED FIELD RULES:
 - "time" must always be in HH:MM format
@@ -146,62 +148,61 @@ You must respond with a JSON object exactly like this:
     "transportation": "Transport details to reach this location",
     "notes": "Additional information"
   }]
-}
-
-Each activity must:
-- Keep its original core purpose and location
-- Only have its timing and order adjusted
-- Include transport details in the "transportation" field
-- NOT be split into multiple activities
-
-Important Budget Rules:
-- ALL costs should be for the entire group, NOT per person (exception is a solo trip)
-- Do not split or show per-person costs
-- Include group tickets/packages where available
-- For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
-- Always provide specific cost estimates, even for variable pricing
-- For venues with variable pricing, provide a reasonable range (e.g., "€50-€100")
-
-Notes Guidelines:
-- For each location, provide specific local insights
-- Include relevant cultural or historical context
-- Add practical tips (best photo spots, busy times, etc.)
-- Mention group-specific considerations
-- Include insider recommendations
-- Note any seasonal considerations for the given date`;
-
-try {
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { 
-        role: "user", 
-        content: JSON.stringify({
-          date,
-          cityContext,
-          transportation,
-          travelGroup,
-          activities,
-          activityCount: activities.length
-        })
-      }
-    ],
-    temperature: 0.7,
-    response_format: { type: "json_object" }
-  });
+}`;
 
   try {
-      // Access the activities array from the response
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: JSON.stringify({
+            date,
+            cityContext,
+            transportation,
+            travelGroup,
+            activities,
+            activityCount: activities.length
+          })
+        }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+
+    try {
       const result = JSON.parse(completion.choices[0].message.content);
-      const reorganizedActivities = result.activities || result; // handle both formats
-      
-      // Preserve original locationData and ensure it's an array
-      return Array.isArray(reorganizedActivities) ? 
-        reorganizedActivities.map((newActivity, index) => ({
+      const reorganizedActivities = result.activities || result;
+
+      if (!Array.isArray(reorganizedActivities)) {
+        throw new Error('Invalid response format from LLM');
+      }
+
+      // Create a map of original activities by their unique identifiers
+      const originalActivitiesMap = new Map(
+        activities.map(activity => [
+          `${activity.activity}|${activity.location}`,
+          activity
+        ])
+      );
+
+      // Map reorganized activities while preserving locationData
+      return reorganizedActivities.map(newActivity => {
+        const key = `${newActivity.activity}|${newActivity.location}`;
+        const originalActivity = originalActivitiesMap.get(key);
+
+        if (!originalActivity) {
+          console.error('Could not find matching original activity:', newActivity);
+          return newActivity;
+        }
+
+        return {
           ...newActivity,
-          locationData: activities[index].locationData
-        })) : [];
+          locationData: originalActivity.locationData
+        };
+      });
+
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
       throw new Error('Generated schedule was not in valid JSON format');
