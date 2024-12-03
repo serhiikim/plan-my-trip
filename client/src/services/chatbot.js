@@ -1,7 +1,7 @@
 export const CHAT_STAGES = {
   DESTINATION: 'destination',
   DATES: 'dates',
-  TRAVEL_GROUP: 'travel_group', // New stage
+  TRAVEL_GROUP: 'travel_group',
   FLIGHT_BOOKED: 'flight_booked',
   FLIGHT_DETAILS: 'flight_details',
   ACCOMMODATION_BOOKED: 'accommodation_booked',
@@ -44,7 +44,7 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.FLIGHT_BOOKED]: {
-      text: "✈️ Have you already booked your flights?\nPlease answer 'Yes' or 'No'",
+      text: "✈️ Have you already booked your flights?\n\nHaving flight details will help me plan activities around your arrival and departure times, and ensure you make the most of your trip.\n\nPlease answer 'Yes' or 'No'",
       nextStage: (input) => input.toLowerCase() === 'yes' ? CHAT_STAGES.FLIGHT_DETAILS : CHAT_STAGES.ACCOMMODATION_BOOKED,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
@@ -55,33 +55,18 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.FLIGHT_DETAILS]: {
-      text: "✈️ Please provide your flight details using the date/time picker above",
+      text: "✈️ Great! Please provide your flight details using the date/time picker above. This will help me optimize your first and last day activities.",
       nextStage: CHAT_STAGES.ACCOMMODATION_BOOKED,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
-        
-        // Check if input matches the expected format
         const pattern = /^Arrival: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\nDeparture: \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
-        
-        if (!pattern.test(input)) {
-          return false;
-        }
-    
-        // Extract dates and times for validation
+        if (!pattern.test(input)) return false;
         const [arrivalLine, departureLine] = input.split('\n');
         const arrivalDateTime = arrivalLine.replace('Arrival: ', '');
         const departureDateTime = departureLine.replace('Departure: ', '');
-    
-        // Convert to Date objects
         const arrival = new Date(arrivalDateTime.replace(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/, '$3-$2-$1T$4:$5'));
         const departure = new Date(departureDateTime.replace(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/, '$3-$2-$1T$4:$5'));
-    
-        // Check if dates are valid
-        if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) {
-          return false;
-        }
-    
-        // Check if departure is after arrival
+        if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) return false;
         return departure > arrival;
       },
       errorMessage: "Please use the date/time picker above",
@@ -89,7 +74,7 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.ACCOMMODATION_BOOKED]: {
-      text: "🏨 Have you already booked your accommodation?\nPlease answer 'Yes' or 'No'",
+      text: "🏨 Have you already booked your accommodation?\n\nKnowing your accommodation location will help me create an optimized itinerary with convenient routes and nearby attractions.\n\nPlease answer 'Yes' or 'No'",
       nextStage: (input) => input.toLowerCase() === 'yes' ? CHAT_STAGES.ACCOMMODATION_DETAILS : CHAT_STAGES.INTERESTS,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
@@ -100,19 +85,19 @@ export const QUESTIONS = {
     },
   
     [CHAT_STAGES.ACCOMMODATION_DETAILS]: {
-        text: "🏨 Great! Please enter your accommodation name or address:",
-        nextStage: CHAT_STAGES.INTERESTS,
-        validate: (input) => {
-          return input && typeof input === 'string' && input.length > 0;
-        },
-        errorMessage: "Please enter your accommodation details"
+      text: "🏨 Perfect! Please enter your accommodation name or address. This will help me suggest nearby attractions and optimize your daily routes:",
+      nextStage: CHAT_STAGES.INTERESTS,
+      validate: (input) => {
+        return input && typeof input === 'string' && input.length > 0;
       },
+      errorMessage: "Please enter your accommodation details"
+    },
 
     [CHAT_STAGES.INTERESTS]: {
-      text: "🎯 What are your main interests?\nFor example: 'museums, food, shopping'",
+      text: "🎯 Tell me about your dream trip! Share your interests or specific wishes.\n\nExamples:\n'museums and local food, no tourist traps'\n'romantic spots for honeymoon'\n'adventure activities with kids'",
       nextStage: CHAT_STAGES.BUDGET,
       validate: (input) => input && input.length > 0,
-      errorMessage: "Please list 2-4 interests, separated by commas"
+      errorMessage: "Please share your interests and any places to avoid"
     },
 
     [CHAT_STAGES.BUDGET]: {
@@ -123,7 +108,7 @@ export const QUESTIONS = {
     },
 
     [CHAT_STAGES.TRANSPORTATION]: {
-      text: "🚗 How would you prefer to get around?\nOptions: public transport, car rental, walking, mixed\nFor example: 'public transport' or 'mixed'",
+      text: "🚗 How would you prefer to get around?",
       nextStage: CHAT_STAGES.COMPLETE,
       validate: (input) => {
         if (!input || typeof input !== 'string') return false;
