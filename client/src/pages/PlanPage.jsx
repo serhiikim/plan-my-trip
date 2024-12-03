@@ -416,7 +416,7 @@ export default function PlanPage() {
                     </div>
 
                     {data.generalNotes && (
-                      <div className="max-w-2xl rounded-md bg-gray-50 p-3"> {/* Changed from blue to gray, reduced padding */}
+                      <div className="max-w-max rounded-md bg-gray-50 p-3"> {/* Changed from blue to gray, reduced padding */}
                         <div className="flex gap-2"> {/* Reduced gap */}
                           <AlertCircle className="w-4 h-4 text-gray-600 flex-shrink-0 mt-0.5" />
                           <div>
