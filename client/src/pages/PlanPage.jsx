@@ -39,7 +39,7 @@ import {
   Trash2,
   MapPin,
   Calendar,
-  DollarSign,
+  HandCoins,
   Info,
   AlertCircle
 } from 'lucide-react';
@@ -408,7 +408,7 @@ export default function PlanPage() {
                             <span>{data.dailyPlans.length} Days • {formatDateRange(data.dailyPlans)}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4" />
+                            <HandCoins className="w-4 h-4" />
                             <span>Estimated Budget: {data.totalCost}</span>
                           </div>
                         </div>
