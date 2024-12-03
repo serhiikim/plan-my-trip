@@ -56,12 +56,24 @@ export async function generateTravelPlan(planData) {
   - Do not split or show per-person costs
   - Include group tickets/packages where available
   - For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
+  - "cost" must always include a specific value or range (e.g., "€20", "€15-€25", "Free")
+  - Never use "N/A", "Various", or "TBD" for any field
+  - For uncertain costs, provide a reasonable estimate range (e.g., "€20-€40")
+  - For free activities, use "Free" instead of €0 or N/A
   
   Important Group Considerations Based on Travel Group Type:
   - Solo: Focus on solo-friendly activities and safety considerations
   - Couple: Include romantic spots and activities suitable for pairs
   - Family: Prioritize family-friendly locations, kid-appropriate activities, and earlier dining times
-  - Friends: Focus on social activities, group-friendly venues, and shared experiences`;
+  - Friends: Focus on social activities, group-friendly venues, and shared experiences
+  
+  Notes Guidelines:
+  - For each location, provide specific local insights
+  - Include relevant cultural or historical context
+  - Add practical tips (best photo spots, busy times, etc.)
+  - Mention group-specific considerations
+  - Include insider recommendations
+  - Note any seasonal considerations for the given date`;
 
   const userPrompt = `Create a travel plan for:
   Destination: ${planData.destination}
@@ -148,7 +160,15 @@ You must respond with a JSON object exactly like this:
     "transportation": "Transport details to reach this location",
     "notes": "Additional information"
   }]
-}`;
+}
+  
+Notes Guidelines:
+- For each location, provide specific local insights
+- Include relevant cultural or historical context
+- Add practical tips (best photo spots, busy times, etc.)
+- Mention group-specific considerations
+- Include insider recommendations
+- Note any seasonal considerations for the given date`;
 
   try {
     const completion = await openai.chat.completions.create({
