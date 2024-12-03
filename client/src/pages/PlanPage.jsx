@@ -1,4 +1,3 @@
-// client/src/pages/PlanPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
@@ -7,9 +6,11 @@ import DayTimeline from '../components/plan/DayTimeline';
 import MapView from '../components/plan/MapView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -37,8 +37,10 @@ import {
   RefreshCw,
   FileText,
   Trash2,
-  Edit2,
-  Save,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Info
 } from 'lucide-react';
 import { PlanLoader } from '@/components/common/PlanLoader';
 
@@ -349,76 +351,135 @@ export default function PlanPage() {
   
     return (
       <Layout>
-      <div className="container max-w-4xl space-y-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Your Travel Itinerary</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {data?.destination}
-              </p>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleShare}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handlePrint}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsRegenerateDialogOpen(true)}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Regenerate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="text-destructive focus:text-destructive"
+        <div className="container max-w-6xl">
+          {loading || isGenerating ? (
+            <PlanLoader isGenerating={isGenerating} />
+          ) : error ? (
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                {error}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => loadItinerary(true)}
+                  className="ml-2"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Plan
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Total Budget: {data?.totalCost}
-              </p>
-            </CardContent>
-          </Card>
-  
-     
-<div className="w-full">
-  {data && <MapView dailyPlans={data.dailyPlans} />}
-</div>
-{renderTimeline()}
-
-  
-          {data?.generalNotes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">General Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{data.generalNotes}</p>
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : !data ? (
+            <Card className="mb-4">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold mb-2">Initializing Your Travel Plan</h2>
+                    <p className="text-muted-foreground">
+                      We're setting up your itinerary. This may take a few moments...
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          )}
-
-
+          ) : (
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="bg-white border rounded-lg shadow-sm">
+                <div className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h1 className="text-2xl font-bold">{data.destination}</h1>
+                          <Badge variant="secondary">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {data.dailyPlans.length} Days
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>Multiple Locations</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-4 h-4" />
+                            <span>Budget: {data.totalCost}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {data.generalNotes && (
+                        <div className="flex items-start gap-2 max-w-2xl">
+                          <Info className="w-4 h-4 mt-1 flex-shrink-0 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">{data.generalNotes}</p>
+                        </div>
+                      )}
+                    </div>
+  
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleShare}>
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Share
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handlePrint}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsRegenerateDialogOpen(true)}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Plan
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+  
+                <Tabs defaultValue="timeline" className="w-full">
+                  <div className="px-6 border-t">
+                    <TabsList className="w-full justify-start rounded-none h-12 bg-transparent p-0 gap-4">
+                      <TabsTrigger value="timeline" className="rounded-none data-[state=active]:border-b-2 border-primary">
+                        Timeline View
+                      </TabsTrigger>
+                      <TabsTrigger value="map" className="rounded-none data-[state=active]:border-b-2 border-primary">
+                        Map View
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+  
+                  <TabsContent value="timeline" className="mt-6">
+                    <div className="px-6 pb-6">
+                      {renderTimeline()}
+                    </div>
+                  </TabsContent>
+  
+                  <TabsContent value="map" className="mt-6">
+                    <div className="px-6 pb-6">
+                      <MapView dailyPlans={data.dailyPlans} />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
 
           {/* Add Delete Dialog */}
            <AlertDialog 
@@ -480,7 +541,9 @@ export default function PlanPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
+          </div>
+        )}
+      </div>
       </Layout>
     );
   }
