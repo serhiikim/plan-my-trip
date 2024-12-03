@@ -48,7 +48,7 @@ export async function generateTravelPlan(planData) {
   - For activities in the same venue, specify exact locations (e.g., "Central Park - Belvedere Castle", "Central Park - Boathouse")
   - Use official or commonly known place names
   - For tourist attractions, landmark names are sufficient
-  - For restaurants/shops, use establishment name only if address is uncertain
+  - For restaurants/shops, use establishment name only if address is uncertain. Don't use "Lunch in {district/city/neighbouhood} name". 
   - Better to be accurate than complete - provide only information you're confident about
   
   Important Budget Rules:
@@ -56,7 +56,6 @@ export async function generateTravelPlan(planData) {
   - Do not split or show per-person costs
   - Include group tickets/packages where available
   - For couples/families/groups, calculate shared costs (e.g., one hotel room, one taxi)
-  - "cost" must always include a specific value or range (e.g., "€20", "€15-€25", "Free")
   - Never use "N/A", "Various", or "TBD" for any field
   - For uncertain costs, provide a reasonable estimate range (e.g., "€20-€40")
   - For free activities, use "Free" instead of €0 or N/A
