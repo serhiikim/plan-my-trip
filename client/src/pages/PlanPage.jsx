@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { Layout } from "@/components/common/Layout";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -9,7 +10,8 @@ import { DeletePlanModal } from '@/components/common/modals/DeletePlanModal';
 import { RegeneratePlanModal } from '@/components/common/modals/RegeneratePlanModal';
 import { PlanHeader } from '@/components/plan/PlanHeader';
 import { PlanActions } from '@/components/plan/PlanActions';
-import { PlanTabs } from '@/components/plan/PlanTabs';
+import DayTimeline from '@/components/plan/DayTimeline';
+import MapView from '@/components/plan/MapView';
 import { usePlanData } from '@/hooks/use-plan-data';
 import { usePlanActions } from '@/hooks/use-plan-actions';
 
@@ -17,6 +19,7 @@ export default function PlanPage() {
   const { planId } = useParams();
   const location = useLocation();
   const isNewPlan = location.search.includes('new=true');
+  const [activeDay, setActiveDay] = useState(null);
 
   const {
     data,
@@ -44,6 +47,13 @@ export default function PlanPage() {
     setError(null);
     startPolling();
   });
+
+  // Set the first day as active by default
+  useEffect(() => {
+    if (data?.dailyPlans?.length > 0 && !activeDay) {
+      setActiveDay(data.dailyPlans[0].date);
+    }
+  }, [data]);
 
   if (loading || isGenerating) {
     return (
@@ -100,7 +110,7 @@ export default function PlanPage() {
 
   return (
     <Layout>
-      <div className="container max-w-6xl">
+      <div className="container max-w-7xl">
         <div className="space-y-6">
           <div className="bg-white border rounded-lg shadow-sm">
             <div className="p-4">
@@ -116,7 +126,36 @@ export default function PlanPage() {
               </div>
             </div>
 
-            <PlanTabs data={data} onSaveDay={handleSaveDay} />
+            <div className="px-6 pb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Timeline section */}
+                <div className="lg:col-span-3 space-y-4">
+                  {data.dailyPlans.map((day, index) => (
+                    <DayTimeline
+                      key={day.date}
+                      day={{ ...day, planId }}
+                      index={index}
+                      onSave={handleSaveDay}
+                      isOpen={day.date === activeDay}
+                      onToggle={(isOpen) => {
+                        setActiveDay(isOpen ? day.date : null);
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="lg:col-span-2">
+                  <div className="sticky top-4">
+                    <Card>
+                      <MapView
+                        dailyPlans={data.dailyPlans}
+                        highlightedDay={activeDay || (data.dailyPlans[0]?.date)}
+                      />
+                    </Card>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <DeletePlanModal

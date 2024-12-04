@@ -5,7 +5,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 export default function ChatPage() {
   return (
     <Layout>
-      <div className="container max-w-4xl">
+      <div className="container">
         <ChatInterface />
       </div>
     </Layout>

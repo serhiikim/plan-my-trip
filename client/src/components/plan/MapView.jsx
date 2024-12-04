@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TargomoClient } from '@targomo/core';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -10,14 +9,13 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 const TARGOMO_API_KEY = import.meta.env.VITE_TARGOMO_API_KEY;
 const TARGOMO_REGION = 'westcentraleurope';
 
-const MapView = ({ dailyPlans }) => {
+const MapView = ({ dailyPlans, highlightedDay }) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markersRef = useRef([]);
     const client = useRef(null);
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedDay, setSelectedDay] = useState('0');
     const [isMapInitialized, setIsMapInitialized] = useState(false);
 
     const formatDate = (dateString) => {
@@ -33,15 +31,16 @@ const MapView = ({ dailyPlans }) => {
             return { lng: 0, lat: 0, zoom: 2 };
         }
 
-        for (const day of dailyPlans) {
-            for (const activity of day.activities) {
-                if (activity.locationData?.coordinates) {
-                    const [lat, lng] = activity.locationData.coordinates;
-                    return { lng, lat, zoom: 11 };
-                }
-            }
+        // Get coordinates from the first activity of the first day
+        const firstDay = dailyPlans[0];
+        const firstActivity = firstDay.activities.find(activity => activity.locationData?.coordinates);
+
+        if (firstActivity?.locationData?.coordinates) {
+            const [lat, lng] = firstActivity.locationData.coordinates;
+            return { lng, lat, zoom: 13 }; // Increased zoom level for better initial view
         }
 
+        // Fallback if no valid coordinates found
         return { lng: 0, lat: 0, zoom: 2 };
     };
 
@@ -50,40 +49,44 @@ const MapView = ({ dailyPlans }) => {
             console.log('Map or dailyPlans not ready:', { map: !!map.current, dailyPlans: !!dailyPlans });
             return;
         }
-    
-        const selectedDayPlan = dailyPlans[parseInt(selectedDay)];
+
+        // Find the day that matches the highlightedDay
+        const selectedDayPlan = highlightedDay
+            ? dailyPlans.find(day => day.date === highlightedDay)
+            : dailyPlans[0];
+
         if (!selectedDayPlan) {
-            console.log('No plan found for selected day:', selectedDay);
+            console.log('No plan found for selected day');
             return;
         }
-    
+
         // Clear existing markers
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
-    
+
         const bounds = new maplibregl.LngLatBounds();
         let hasValidCoordinates = false;
-    
+
         selectedDayPlan.activities.forEach((activity, activityIndex) => {
             if (activity.locationData?.coordinates) {
                 const [lat, lng] = activity.locationData.coordinates;
                 const coordinates = [lng, lat];
 
                 const el = document.createElement('div');
-el.style.backgroundColor = '#000000';  // Black background
-el.style.display = 'flex';
-el.style.alignItems = 'center';
-el.style.justifyContent = 'center';
-el.style.borderRadius = '50%';
-el.style.width = '28px';
-el.style.height = '28px';
-el.style.border = '2px solid #000000';  // Black border
-el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-el.style.color = '#FFFFFF';  // White text
-el.style.fontWeight = 'bold';
-el.style.fontSize = '14px';
-el.style.cursor = 'pointer';
-el.innerHTML = `${activityIndex + 1}`;
+                el.style.backgroundColor = '#000000';
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.style.borderRadius = '50%';
+                el.style.width = '28px';
+                el.style.height = '28px';
+                el.style.border = '2px solid #000000';
+                el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                el.style.color = '#FFFFFF';
+                el.style.fontWeight = 'bold';
+                el.style.fontSize = '14px';
+                el.style.cursor = 'pointer';
+                el.innerHTML = `${activityIndex + 1}`;
 
                 const marker = new maplibregl.Marker({
                     element: el,
@@ -124,26 +127,25 @@ el.innerHTML = `${activityIndex + 1}`;
         const initializeMap = async () => {
             try {
                 if (!mapContainer.current) return;
-    
+
                 // Clear existing map and markers
                 if (map.current) {
                     markersRef.current.forEach((marker) => marker.remove());
                     map.current.remove();
                 }
-    
+
                 client.current = new TargomoClient(TARGOMO_REGION, TARGOMO_API_KEY);
                 const initialCenter = getInitialMapCenter();
-    
+
                 map.current = new maplibregl.Map({
                     container: mapContainer.current,
-                    style: client.current.basemaps.getGLStyleURL('Light'),
+                    style: client.current.basemaps.getGLStyleURL('Bright'),
                     center: [initialCenter.lng, initialCenter.lat],
                     zoom: initialCenter.zoom,
                     renderWorldCopies: true,
                     attributionControl: true
                 });
-    
-                // Add navigation control
+
                 map.current.addControl(
                     new maplibregl.NavigationControl({
                         showCompass: true,
@@ -151,29 +153,27 @@ el.innerHTML = `${activityIndex + 1}`;
                     }),
                     'top-right'
                 );
-    
-                // Add scale control
+
                 map.current.addControl(
                     new maplibregl.ScaleControl(),
                     'bottom-right'
                 );
-    
+
                 map.current.on('load', () => {
                     setIsMapInitialized(true);
                     setIsLoading(false);
-                    // Update markers immediately after map is loaded
                     updateMarkers();
                 });
-    
+
             } catch (err) {
                 console.error('Map initialization error:', err);
                 setError(`Failed to load map: ${err.message}`);
                 setIsLoading(false);
             }
         };
-    
+
         initializeMap();
-    
+
         return () => {
             if (map.current) {
                 markersRef.current.forEach((marker) => marker.remove());
@@ -181,22 +181,13 @@ el.innerHTML = `${activityIndex + 1}`;
                 map.current = null;
             }
         };
-    }, []); // Add dailyPlans as a dependency
+    }, []);
 
     useEffect(() => {
         if (map.current && isMapInitialized) {
-            // Force update markers when dailyPlans changes
-            setSelectedDay('0'); // Reset to first day
             updateMarkers();
         }
-    }, [dailyPlans]);
-    
-    // Keep the existing effect for selected day changes
-    useEffect(() => {
-        if (isMapInitialized) {
-            updateMarkers();
-        }
-    }, [selectedDay, isMapInitialized]);
+    }, [highlightedDay, isMapInitialized]);
 
     if (error) {
         return (
@@ -208,33 +199,18 @@ el.innerHTML = `${activityIndex + 1}`;
     }
 
     return (
-        <Card className="w-full">
-            <Tabs value={selectedDay} onValueChange={setSelectedDay}>
-                <TabsList className="w-full h-auto flex-wrap">
-                    {dailyPlans.map((day, index) => (
-                        <TabsTrigger 
-                            key={day.date} 
-                            value={index.toString()}
-                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                        >
-                            {formatDate(day.date)}
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
-            </Tabs>
-            <div className="relative w-full h-[500px]">
-                <div
-                    ref={mapContainer}
-                    className="absolute inset-0"
-                    style={{ width: '100%', height: '100%' }}
-                />
-                {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-                        Loading map...
-                    </div>
-                )}
-            </div>
-        </Card>
+        <div className="relative w-full h-[calc(100vh-32px)] min-h-[400px]">
+            <div
+                ref={mapContainer}
+                className="absolute inset-0"
+                style={{ width: '100%', height: '100%' }}
+            />
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+                    Loading map...
+                </div>
+            )}
+        </div>
     );
 };
 
