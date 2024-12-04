@@ -229,7 +229,7 @@ export default function ItinerariesPage() {
 
   return (
     <Layout>
-      <div className="container max-w-5xl py-12">
+      <div className="container py-6">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Your Travel Plans</h1>

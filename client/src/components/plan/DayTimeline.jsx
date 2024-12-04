@@ -34,7 +34,7 @@ const formatDate = (dateString) => {
   }
 };
 
-export default function DayTimeline({ day, index, onSave }) {
+export default function DayTimeline({ day, index, onSave, isOpen, onToggle }) {
   const [isEditing, setIsEditing] = useState(false);
   const [activities, setActivities] = useState(day.activities);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
@@ -101,7 +101,13 @@ export default function DayTimeline({ day, index, onSave }) {
   };
 
   return (
-    <Accordion type="single" collapsible className="w-full">
+      <Accordion 
+        type="single" 
+        collapsible 
+        className="w-full"
+        value={isOpen ? day.date : undefined}
+        onValueChange={(value) => onToggle && onToggle(value === day.date)}
+      >
       <AccordionItem value={day.date}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

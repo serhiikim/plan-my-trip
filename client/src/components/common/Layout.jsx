@@ -58,7 +58,7 @@ export function Layout({ children }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container flex h-14 items-center justify-between max-w-6xl mx-auto px-4">
+        <div className="container flex h-14 items-center justify-between mx-auto px-4">
           <div className="flex items-center space-x-4">
             <h1 
               onClick={() => navigate('/chat')} 
@@ -96,7 +96,7 @@ export function Layout({ children }) {
         </div>
       </header>
 
-      <main className="flex-1 container max-w-6xl mx-auto px-4 py-6">
+      <main className="flex-1 container mx-auto px-4 py-6">
         {children}
       </main>
       <Toaster />
