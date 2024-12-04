@@ -110,7 +110,7 @@ export default function PlanPage() {
 
   return (
     <Layout>
-      <div className="container max-w-7xl">
+      <div className="container">
         <div className="space-y-6">
           <div className="bg-white border rounded-lg shadow-sm">
             <div className="p-4">
