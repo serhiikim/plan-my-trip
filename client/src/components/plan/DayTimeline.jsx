@@ -101,35 +101,28 @@ export default function DayTimeline({ day, index, onSave, isOpen, onToggle }) {
   };
 
   return (
-      <Accordion 
-        type="single" 
-        collapsible 
-        className="w-full"
-        value={isOpen ? day.date : undefined}
-        onValueChange={(value) => onToggle && onToggle(value === day.date)}
-      >
-      <AccordionItem value={day.date}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-6">
-                <CardTitle className="text-xl font-semibold">Day {index + 1}</CardTitle>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  {formatDate(day.date)}
-                </div>
-              </div>
-            </AccordionTrigger>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
-                <Banknote className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  {day.dailyCost}
-                </span>
+       <AccordionItem value={day.date}>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-6">
+              <CardTitle className="text-xl font-semibold">Day {index + 1}</CardTitle>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                {formatDate(day.date)}
               </div>
             </div>
-          </CardHeader>
-          <AccordionContent>
+          </AccordionTrigger>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
+              <Banknote className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                {day.dailyCost}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <AccordionContent>
             <CardContent>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-muted-foreground">
@@ -235,6 +228,5 @@ export default function DayTimeline({ day, index, onSave, isOpen, onToggle }) {
           </AccordionContent>
         </Card>
       </AccordionItem>
-    </Accordion>
   );
 }
