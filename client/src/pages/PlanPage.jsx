@@ -14,6 +14,7 @@ import DayTimeline from '@/components/plan/DayTimeline';
 import MapView from '@/components/plan/MapView';
 import { usePlanData } from '@/hooks/use-plan-data';
 import { usePlanActions } from '@/hooks/use-plan-actions';
+import { Accordion } from '@/components/ui/accordion';
 
 export default function PlanPage() {
   const { planId } = useParams();
@@ -129,19 +130,23 @@ export default function PlanPage() {
             <div className="px-6 pb-6">
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Timeline section */}
-                <div className="lg:col-span-3 space-y-4">
-                  {data.dailyPlans.map((day, index) => (
-                    <DayTimeline
-                      key={day.date}
-                      day={{ ...day, planId }}
-                      index={index}
-                      onSave={handleSaveDay}
-                      isOpen={day.date === activeDay}
-                      onToggle={(isOpen) => {
-                        setActiveDay(isOpen ? day.date : null);
-                      }}
-                    />
-                  ))}
+                <div className="lg:col-span-3">
+                <Accordion 
+    type="single" 
+    collapsible 
+    className="space-y-4"
+    value={activeDay}
+    onValueChange={setActiveDay}
+  >
+    {data.dailyPlans.map((day, index) => (
+      <DayTimeline
+        key={day.date}
+        day={{ ...day, planId }}
+        index={index}
+        onSave={handleSaveDay}
+      />
+    ))}
+  </Accordion>
                 </div>
 
                 <div className="lg:col-span-2">
