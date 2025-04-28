@@ -5,6 +5,7 @@ import { ArrowRight, Plane, MessageSquare, Map, Calendar, Clock, Settings, Globe
 import toast from 'react-hot-toast';
 import { auth } from '@/services/auth';
 import { useDispatch } from '@/store/store';
+import ContactForm from '@/components/ContactForm';
 
 const LandingPage = () => {
     const [activeFeature, setActiveFeature] = useState(null);
@@ -167,6 +168,13 @@ const LandingPage = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Contact Section */}
+                <div className="bg-teal-50 py-24" id="contact">
+                    <div className="container mx-auto px-4">
+                        <ContactForm />
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -176,7 +184,8 @@ const NavLinks = () => (
     <div className="flex items-center gap-6">
         {[
             { text: "Features", href: "#features" },
-            { text: "How It Works", href: "#how-it-works" }
+            { text: "How It Works", href: "#how-it-works" },
+            { text: "Contact", href: "#contact" }
         ].map((link) => (
             <a
                 key={link.text}
@@ -193,7 +202,8 @@ const MobileNavLinks = () => (
     <div className="flex flex-col gap-4">
         {[
             { text: "Features", href: "#features" },
-            { text: "How It Works", href: "#how-it-works" }
+            { text: "How It Works", href: "#how-it-works" },
+            { text: "Contact", href: "#contact" }
         ].map((link) => (
             <a
                 key={link.text}
