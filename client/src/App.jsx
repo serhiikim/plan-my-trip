@@ -23,9 +23,8 @@ function App() {
     // Identify existing user if they're already logged in
     const user = auth.getUser();
     if (user) {
-      const distinctId = localStorage.getItem('posthog_distinct_id') || user.id;
       posthog.identify(
-        distinctId,
+        user.email,
         {
           email: user.email,
           name: user.name,
