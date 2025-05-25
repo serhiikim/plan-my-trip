@@ -1,5 +1,6 @@
 // client/src/services/auth.js
 import { api } from './api';
+import posthog from 'posthog-js';
 
 class AuthService {
   constructor() {
@@ -17,6 +18,23 @@ class AuthService {
       };
       
       this.setUser(userData);
+      
+      // Get or create a persistent distinct ID
+      const distinctId = localStorage.getItem('posthog_distinct_id') || user.id;
+      localStorage.setItem('posthog_distinct_id', distinctId);
+      
+      // Identify user in PostHog with persistent distinct ID
+      posthog.identify(
+        distinctId,
+        {
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          google_id: user.id,
+          last_login: new Date().toISOString()
+        }
+      );
+      
       return userData;
     } catch (error) {
       console.error('Login error:', error);
@@ -34,8 +52,10 @@ class AuthService {
   }
 
   logout() {
+    // Don't reset PostHog user, just clear the current user data
     this.user = null;
     localStorage.removeItem('user');
+    // Note: We keep posthog_distinct_id in localStorage to maintain user identity
   }
 
   isAuthenticated() {

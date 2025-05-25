@@ -4,6 +4,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from '@/components/ui/toaster';
 import { StoreProvider } from './store/store';
 import { auth } from './services/auth';
+import posthog from 'posthog-js';
+import { useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
 import PlanPage from './pages/PlanPage';
@@ -17,6 +19,24 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
+  useEffect(() => {
+    // Identify existing user if they're already logged in
+    const user = auth.getUser();
+    if (user) {
+      const distinctId = localStorage.getItem('posthog_distinct_id') || user.id;
+      posthog.identify(
+        distinctId,
+        {
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          google_id: user.id,
+          last_login: new Date().toISOString()
+        }
+      );
+    }
+  }, []);
+
   return (
     <StoreProvider>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
