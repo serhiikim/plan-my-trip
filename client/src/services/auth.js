@@ -19,13 +19,10 @@ class AuthService {
       
       this.setUser(userData);
       
-      // Get or create a persistent distinct ID
-      const distinctId = localStorage.getItem('posthog_distinct_id') || user.id;
-      localStorage.setItem('posthog_distinct_id', distinctId);
       
       // Identify user in PostHog with persistent distinct ID
       posthog.identify(
-        distinctId,
+        user.email,
         {
           email: user.email,
           name: user.name,
